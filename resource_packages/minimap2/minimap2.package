@@ -1,0 +1,11 @@
+mod = [
+	"minimap2"
+]
+
+package = [
+	"resource_packages/minimap2/minimap2"
+]
+
+lua = [
+	"scripts/mods/minimap2/*"
+]
