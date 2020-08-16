@@ -37,9 +37,8 @@ local scenegraph_definition = {
 				scenegraph_id = "minimap_3d_viewport",
                 viewport_name = "minimaps_3d_viewport",
                 layer = UILayer.default,
-                viewport_type = "default_forward",
-                shading_environment = "environment/blank_offscreen_chest_item",
-				enable_sub_gui = false,
+                viewport_type = "default",
+				enable_sub_gui = true,
 				fov = 120,
 				world_flags = {
 					Application.DISABLE_SOUND,

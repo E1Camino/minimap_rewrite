@@ -8,17 +8,26 @@ local DEFINITIONS = mod:dofile("scripts/mods/minimap2/minimap_3d_definitions")
 
 -- MOD STATE AND LOGIC
 local Minimap3DView = class()
+
+function Minimap3DView:getViewport()
+    return self.widgets.viewport.element.pass_data[1]
+end
+
 function Minimap3DView:init(ingame_ui_context)
     self._world_name = "minimap_3d_world"
     self._viewport_name = "minimap_3d_viewport"
+    local level_settings = LevelHelper:current_level_settings()
+    self._level_name = level_settings.level_name
+
     self._input_service_name = "minimap_3d_input"
-    self.debug = true
+    self.debug = false
 	self.ui_renderer = ingame_ui_context.ui_renderer
 	self.ui_top_renderer = ingame_ui_context.ui_top_renderer
 	self.ingame_ui = ingame_ui_context.ingame_ui
 	self.statistics_db = ingame_ui_context.statistics_db
 	self.stats_id = ingame_ui_context.stats_id
-	self.input_manager = ingame_ui_context.input_manager
+    self.input_manager = ingame_ui_context.input_manager
+    self.world_manager = ingame_ui_context.world_manager
 	self.render_settings = {
 		snap_pixel_positions = true
 	}
@@ -42,13 +51,19 @@ function Minimap3DView:init(ingame_ui_context)
     self.input_manager = input_manager
 
     -- Create wwise_world which is used for making sounds (for opening view, closing view, etc.)
-    -- self.world = ingame_ui_context.world_manager:world("level_world")
-    self.world = Managers.world:world("level_world")
-    self.wwise_world = Managers.world:wwise_world(self.world)
+    self.world = self.world_manager:world("level_world")
+    self.wwise_world = self.world_manager:wwise_world(self.world)
     
-    self:create_ui_elements()
-
+    if not mod.view then
+        self:create_ui_elements()
+    end
     mod.view = self
+
+    -- safe some references to previous world and viewport
+    self.o_world_name = Managers.player:local_player().viewport_world_name
+    self.o_viewport_name = Managers.player:local_player().viewport_name
+    self.world = self:getViewport().world
+    self.viewport = self:getViewport().viewport
 
     mod:echo("Custom View initialized.")
 end
@@ -79,56 +94,32 @@ end
   also be passed to a transition function.
 --]]
 function Minimap3DView:on_enter(transition_params)
+    local world_manager = self.world_manager
     local viewport_widget = self.widgets.viewport
+
+    local status, result = pcall(world_manager:world(self.o_world_name))
+    if not status then
+        self.o_world = Managers.world:world(self.o_world_name)
+        self.o_viewport = ScriptWorld.viewport(self.o_world, self.o_viewport_name)
+    end
 
     if viewport_widget then
         mod:echo("switch to custom viewport")
-
-        local status, result = pcall(Managers.world:world("level_world"))
-
-        if not status then
-            local world = Managers.world:world("level_world")
-            self.world = world
-        end
-
-        self.o_world = Managers.world:world("level_world")
-        self.o_viewport = ScriptWorld.viewport(o_world, "player_1")
-
-        ScriptWorld.deactivate_viewport(o_world, o_viewport)
-
-        local previewer_pass_data = viewport_widget.element.pass_data[1]
-        self.viewport = previewer_pass_data.viewport
-        self.world = Application.main_world()
+        ScriptWorld.deactivate_viewport(self.o_world, self.o_viewport)
 
         if not self.camera then
-            self.camera = MinimapOrtoCam:new(self.world, self.viewport)
+           self.camera = MinimapOrtoCam:new(self.world, self.viewport, self.o_viewport)
         end
         ScriptWorld.activate_viewport(self.world, self.viewport)
     end
-    mod.active = true
+    self.active = true
 
     mod:echo("Custom View opened. transition_params: %s", transition_params)
     WwiseWorld.trigger_event(self.wwise_world, "Play_hud_button_open")
 end
 
-function Minimap3DView:print_game_location()
-    local ingame_ui = self.ingame_ui
-
-    -- on screen text
-    local local_player_unit = Managers.player:local_player().player_unit
-    local player_position = Unit.local_position(local_player_unit, 0)
-    local w, h = Application.resolution()
-    local pos = Vector3(20, h - 25, 5) 
-    pos = self:_show_text("pos: " .. player_position.x .. ", " .. player_position.y .. ", " .. player_position.z, pos)
---    pos = ingame_ui:_show_text("testasdasd", pos2)
-end
 
 
-function Minimap3DView:_show_text(text, pos)
-	Gui.text(self.ui_renderer.gui, text, "materials/fonts/gw_head", 20, "gw_head", pos, Color(0, 255, 0))
-	return Vector3(pos[1], pos[2] - 30, pos[3])
-end
-  
 --[[
   Everything is the same as for `Minimap3DView:on_enter(...)`. But this method is called if a transition resulted in
   this view becoming inactive.
@@ -143,8 +134,8 @@ function Minimap3DView:on_exit(transition_params)
         local viewport = previewer_pass_data.viewport
         local world = previewer_pass_data.world
 
-        ScriptWorld.deactivate_viewport(world, viewport)
-
+        ScriptWorld.deactivate_viewport(self.world, self.viewport)
+    
         ScriptWorld.activate_viewport(self.o_world, self.o_viewport)
 
         self.active = false
@@ -172,13 +163,15 @@ end
 
 function Minimap3DView:create_ui_elements()
     self.scenegraph = UISceneGraph.init_scenegraph(DEFINITIONS.scenegraph_definition)
-  
     self.widgets = {}
     for widget_name, widget_definition in pairs(DEFINITIONS.widgets_definition) do
         mod:echo(widget_name)
         if widget_name == "viewport" then
             widget_definition.style.viewport.viewport_name = self._viewport_name
             widget_definition.style.viewport.world_name = self._world_name
+            if not widget_definition.style.viewport.level_name then
+                widget_definition.style.viewport.level_name = self._level_name
+            end
         end
         mod:dump(widget_definition, "widget definition", 3)
         self.widgets[widget_name] = UIWidget.init(widget_definition)
@@ -216,6 +209,22 @@ function Minimap3DView:draw(dt)
     end
 end
 
+function Minimap3DView:print_game_location()
+    local ingame_ui = self.ingame_ui
+
+    -- on screen text
+    local local_player_unit = Managers.player:local_player().player_unit
+    local player_position = Unit.local_position(local_player_unit, 0)
+    local w, h = Application.resolution()
+    local pos = Vector3(20, h - 25, 5) 
+    pos = self:_show_text("pos: " .. player_position.x .. ", " .. player_position.y .. ", " .. player_position.z, pos)
+end
+
+function Minimap3DView:_show_text(text, pos)
+	Gui.text(self.ui_renderer.gui, text, "materials/fonts/gw_head", 20, "gw_head", pos, Color(0, 255, 0))
+	return Vector3(pos[1], pos[2] - 30, pos[3])
+end
+  
 -- Your mod code goes here.
 -- https://vmf-docs.verminti.de
 local view_data = {
@@ -255,7 +264,7 @@ local view_data = {
                 ShowCursorStack.push()
             end
 
-            ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "keyboard", 1)
+            --ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "keyboard", 1)
             ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "mouse", 1)
             ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "gamepad", 1)
 
@@ -279,6 +288,10 @@ local view_data = {
 mod:register_view(view_data)
 
 mod.toggle_debug_mode = function()
+    if not mod.view then
+        return
+    end
+
     if mod.view.debug then
         mod.view.debug = false
     else
@@ -286,15 +299,18 @@ mod.toggle_debug_mode = function()
     end
 end
 
-mod.update = function(dt)
-    
-    if mod.view.debug then
-        mod.view:print_game_location()
-    end
+mod.update = function(dt) 
     if not mod.view then
         return
     end
-	if not mod.view.active then
+
+    local debug = mod.view.debug
+    local active = mod.view.active
+
+    if debug then
+        mod.view:print_game_location()
+    end
+	if not active then
 		return
 	end
 end
@@ -303,7 +319,6 @@ mod.on_unload = function(exit_game)
     if not mod.view then
         return
     end
-
 	if mod.view.active then
 		mod:destroy_ui_elements()
 	end
@@ -313,7 +328,6 @@ mod.on_disabled = function(is_first_call)
     if not mod.view then
         return
     end
-
     if mod.view.active then
 		mod:destroy_ui_elements()
 	end
@@ -321,7 +335,9 @@ end
 
 mod.print_debug = function(dt)
 	local local_player_unit = Managers.player:local_player().player_unit
-	local player_position = Unit.local_position(local_player_unit, 0)
-	mod:echo(player_position)
+    local player_position = Unit.local_position(local_player_unit, 0)
+    if mod.view then
+        mod.view:_show_text(player_position)
+    end
 end
 mod:command("m_debug", "Shows debug stuff for Minimap mod", mod.print_debug)

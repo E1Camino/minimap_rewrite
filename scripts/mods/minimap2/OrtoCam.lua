@@ -1,8 +1,8 @@
 local mod = get_mod("minimap2")
 
 -- HELPER CLASS FOR THE CAMERA AND VIEWPORT
-local MinimapOrtoCam = class()
-function MinimapOrtoCam:init(world, viewport)
+MinimapOrtoCam = class(MinimapOrtoCam)
+MinimapOrtoCam.init = function(self, world, viewport, viewport_to_sync_from)
     camera_unit = World.spawn_unit(world, "core/units/camera")
 
     local camera = Unit.camera(camera_unit, "camera")
@@ -11,18 +11,17 @@ function MinimapOrtoCam:init(world, viewport)
     local shadow_cull_camera = Unit.camera(camera_unit, "shadow_cull_camera")
     Camera.set_data(shadow_cull_camera, "unit", camera_unit)
 
-    if viewport then
-        self.viewport = viewport
-        Viewport.set_data(viewport, "camera", camera)
-        Viewport.set_data(viewport, "shadow_cull_camera", shadow_cull_camera)
-    end
+    self.viewport = viewport
+    Viewport.set_data(viewport, "camera", camera)
+    Viewport.set_data(viewport, "shadow_cull_camera", shadow_cull_camera)
 
     ScriptWorld._update_render_queue(world)
 
     self.world = world
+    self.viewport_to_sync_from = viewport_to_sync_from
     self.camera = camera
     self.shadow_cull_camera = shadow_cull_camera
-    self.height = 1
+    self.height = 5
     self.far = 100
     self.near = 2
     self.area = 30
@@ -35,10 +34,10 @@ end
 
 
 -- moves the orto cam above the current player position
-function MinimapOrtoCam:sync(dt)
-    mod:echo("sync")
+MinimapOrtoCam.sync = function(self, dt)
     local world = self.world
     local viewport = self.viewport
+    local viewport_o = self.viewport_to_sync_from
     local camera = self.camera
     local shadow_cull_camera = self.shadow_cull_camera
     local height = self.height
@@ -59,8 +58,17 @@ function MinimapOrtoCam:sync(dt)
 	camera_position_new.y = player_position.y
 
     -- we also need the position of the original camera
+    local original_camera = ScriptViewport.camera(viewport_o)
+    if not original_camera then
+		return
+	end
+	local original_camera_position = ScriptCamera.position(original_camera)
+	ScriptCamera.set_local_position(camera, original_camera_position)
 
-
+	--local cameraHeight = mod._current_settings.height
+	--local far = mod._current_settings.far
+    --local near = mod._current_settings.near
+    
 	camera_position_new.z = height
 	local direction = Vector3.normalize(Vector3(0, 0, -1))
 	local rotation = Quaternion.look(direction)
@@ -86,7 +94,7 @@ function MinimapOrtoCam:sync(dt)
 	Camera.set_orthographic_view(camera, min, max, min, max)
 	Camera.set_orthographic_view(shadow_cull_camera, min, max, min, max)
 
-	local s = 20 / 100 -- mod:get("size")
+	local s = 50 / 100 -- mod:get("size")
 	local xmin = 1 - s
 	Viewport.set_data(
 		viewport,
