@@ -35,33 +35,43 @@ local scenegraph_definition = {
 		style = {
 			viewport = {
 				scenegraph_id = "minimap_3d_viewport",
-                viewport_name = "minimap_3d_viewport",
-                layer = 990,
+                viewport_name = "minimaps_3d_viewport",
+                layer = UILayer.default,
                 viewport_type = "default_forward",
-				level_name = "levels/ui_character_selection/world",
+                shading_environment = "environment/blank_offscreen_chest_item",
 				enable_sub_gui = false,
 				fov = 120,
-				world_name = "minimap_3d_world",
 				world_flags = {
 					Application.DISABLE_SOUND,
                     Application.DISABLE_ESRAM,
 					Application.ENABLE_VOLUMETRICS
                 },
+                object_sets = {
+                    "flow_victory"
+                },
 				camera_position = {
 					0,
-					0,
-					0
+					0.7,
+					1
 				},
 				camera_lookat = {
 					0,
 					0,
 					-0.1
 				}
-			}
+			},
+			shading_environment = {
+                fog_enabled = 0,
+                dof_enabled = 0,
+                motion_blur_enabled = 0,
+                outline_enabled = 0,
+                ssm_enabled = 1,
+                ssm_constant_update_enabled = 1
+            }
 		},
         content = {}
     },
-    background = UIWidgets.create_simple_texture("large_frame_01", "dead_space_filler")
+    background = UIWidgets.create_simple_texture("large_frame_01", "minimap_3d_viewport")
   }
   
   return {
