@@ -129,7 +129,7 @@ function Minimap3DView:on_enter(transition_params)
 
     if viewport_widget then
         mod:echo("switch to custom viewport")
-        ScriptWorld.deactivate_viewport(self.o_world, self.o_viewport)
+        --ScriptWorld.deactivate_viewport(self.o_world, self.o_viewport)
 
         if not self.camera then
            self.camera = MinimapOrtoCam:new(self.world, self.viewport, self.o_viewport)
@@ -161,7 +161,7 @@ function Minimap3DView:on_exit(transition_params)
 
         ScriptWorld.deactivate_viewport(self.world, self.viewport)
     
-        ScriptWorld.activate_viewport(self.o_world, self.o_viewport)
+        --ScriptWorld.activate_viewport(self.o_world, self.o_viewport)
 
         self.active = false
     end
