@@ -3,17 +3,40 @@ local mod = get_mod("minimap2")
 mod:dofile("scripts/mods/minimap2/OrtoCam")
 
 mod.active = false
+mod._level_settings = nil
 
 local DEFINITIONS = mod:dofile("scripts/mods/minimap2/minimap_3d_definitions")
+
+-- A view by itself is just a table with several callbacks required by ingame_ui. How it will behave is completely up to
+-- you. In this example I'm going to create a simple view which can be toggled with a keybind. It will draw 2 rectangles
+-- which are highlighted when hovered. I won't explain anything related to widget definitions, their creating, and
+-- drawing because this is a different topic.
+
+-- We're going to use Fatshark's class system to instantiate this view ('foundation/scripts/util/class.lua').
+-- This means every time you execute `CustomView:new(...)`, it returns a new table which has all the
+-- CustomView methods defined below and also executes `CustomView:init(...)`.
+
 
 -- MOD STATE AND LOGIC
 local Minimap3DView = class()
 
 function Minimap3DView:getViewport()
+    mod:echo("getViewport")
     return self.widgets.viewport.element.pass_data[1]
 end
 
+--[[
+  This method is executed every time we create a new instance of 'Minimap3DView'. The passed 'ingame_ui_context'
+  parameter is a table, which contains everything that is needed for operating this view: renderer, input manager,
+  world information, etc.
+  Every time the level changes, the 'ingame_ui_context's contents are changed as well, so we want some callback to grab the
+  latest 'ingame_ui_context' every time this happens. There's 'init_view_function' inside 'view_data' which does
+  exactly that.
+  In this example we don't update ingame UI context inside view. We just create a new instance of view every time
+  'init_view_function' is called.
+--]]
 function Minimap3DView:init(ingame_ui_context)
+    mod:echo("init")
     self._world_name = "minimap_3d_world"
     self._viewport_name = "minimap_3d_viewport"
     local level_settings = LevelHelper:current_level_settings()
@@ -94,6 +117,7 @@ end
   also be passed to a transition function.
 --]]
 function Minimap3DView:on_enter(transition_params)
+    mod:echo("on_enter")
     local world_manager = self.world_manager
     local viewport_widget = self.widgets.viewport
 
@@ -125,6 +149,7 @@ end
   this view becoming inactive.
 --]]
 function Minimap3DView:on_exit(transition_params)
+    mod:echo("on_exit")
     -- happily copied from character_selection_view.lua:suspend (l:573)
     local viewport_widget = self.widgets.viewport
 
@@ -151,6 +176,7 @@ end
   the end of the level and in some exotic situations.
 --]]
 function Minimap3DView:destroy()
+    mod:echo("destroy")
     Managers.world:destroy_world(self._world_name)
 end
 
@@ -162,6 +188,7 @@ function Minimap3DView:input_service()
 end
 
 function Minimap3DView:create_ui_elements()
+    mod:echo("create_ui_elements")
     self.scenegraph = UISceneGraph.init_scenegraph(DEFINITIONS.scenegraph_definition)
     self.widgets = {}
     for widget_name, widget_definition in pairs(DEFINITIONS.widgets_definition) do
@@ -340,4 +367,19 @@ mod.print_debug = function(dt)
         mod.view:_show_text(player_position)
     end
 end
+
+
+-- loads custom settings (such as specific camera preferences) for currently loaded level
+mod._get_level_settings = function(self)
+    mod:echo("get_level_settings")
+	local level_transition_handler = Managers.state.game_mode.level_transition_handler
+    local level_key = level_transition_handler:get_current_level_keys()
+    if level_key == "inn_level_sonnstill" then
+        level_key = "inn_level"
+    end
+	mod._level_key = level_key
+	mod:echo(level_key)
+	return dofile("scripts/mods/minimap2/level_settings")[level_key]
+end
+
 mod:command("m_debug", "Shows debug stuff for Minimap mod", mod.print_debug)
