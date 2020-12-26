@@ -206,6 +206,7 @@ function Minimap3DView:create_ui_elements()
 end
 
 function Minimap3DView:destroy_ui_elements()
+    mod:echo("destroy_ui_elements")
     self.scenegraph = UISceneGraph.init_scenegraph(DEFINITIONS.scenegraph_definition)
   
     self.widgets = {}
@@ -292,7 +293,7 @@ local view_data = {
             end
 
             --ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "keyboard", 1)
-            ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "mouse", 1)
+            --ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "mouse", 1)
             ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "gamepad", 1)
 
             ingame_ui.menu_active = true
