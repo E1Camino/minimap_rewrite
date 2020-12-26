@@ -313,7 +313,13 @@ local view_data = {
         end
     }
 }
-mod:register_view(view_data)
+-- mod:register_view(view_data)
+
+mod.register_manually = function()
+    if not mod.view then
+        mod:register_view(view_data)
+    end
+end
 
 mod.toggle_debug_mode = function()
     if not mod.view then
@@ -338,6 +344,11 @@ mod.update = function(dt)
     if debug then
         mod.view:print_game_location()
     end
+
+	if not mod._level_settings then
+		mod._level_settings = mod:_get_level_settings()
+	end
+
 	if not active then
 		return
 	end

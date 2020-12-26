@@ -31,6 +31,14 @@ return {
 				keybind_type = "function_call",
 				function_name = "toggle_debug_mode",
 				default_value = {}
+			},
+			{
+				setting_id = "register_manually",
+				type = "keybind",
+				keybind_trigger = "pressed", -- "held" when ready
+				keybind_type = "function_call",
+				function_name = "register_manually",
+				default_value = {}
 			}
 		}
 	}
