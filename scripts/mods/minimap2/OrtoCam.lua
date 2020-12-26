@@ -15,16 +15,17 @@ MinimapOrtoCam.init = function(self, world, viewport, viewport_to_sync_from)
     Viewport.set_data(viewport, "camera", camera)
     Viewport.set_data(viewport, "shadow_cull_camera", shadow_cull_camera)
 
+
     ScriptWorld._update_render_queue(world)
 
     self.world = world
     self.viewport_to_sync_from = viewport_to_sync_from
     self.camera = camera
     self.shadow_cull_camera = shadow_cull_camera
-    self.height = 5
-    self.far = 100
-    self.near = 2
-    self.area = 30
+    self.height = 2000
+    self.far = 10000
+    self.near = 100
+    self.area = 12
 
     return {
         camera = camera,
@@ -94,7 +95,7 @@ MinimapOrtoCam.sync = function(self, dt)
 	Camera.set_orthographic_view(camera, min, max, min, max)
 	Camera.set_orthographic_view(shadow_cull_camera, min, max, min, max)
 
-	local s = 50 / 100 -- mod:get("size")
+	local s = 20 / 100 -- mod:get("size")
 	local xmin = 1 - s
 	Viewport.set_data(
 		viewport,
