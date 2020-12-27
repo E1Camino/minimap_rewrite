@@ -21,19 +21,19 @@ local scenegraph_definition = {
   }
   
   local widgets_definition = {
-	viewport = {
+	map_viewport = {
 		scenegraph_id = "minimap_3d_viewport",
 		element = {
 			passes = {
 				{
-					style_id = "viewport",
-					pass_type = "viewport",
-					content_id = "viewport"
+					style_id = "map_viewport",
+					pass_type = "map_viewport",
+					content_id = "map_viewport"
 				}
 			}
 		},
 		style = {
-			viewport = {
+			map_viewport = {
 				scenegraph_id = "minimap_3d_viewport",
                 viewport_name = "minimaps_3d_viewport",
                 layer = UILayer.default,

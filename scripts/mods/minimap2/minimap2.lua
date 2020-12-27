@@ -1,5 +1,6 @@
 local mod = get_mod("minimap2")
 
+mod:dofile("scripts/mods/minimap2/MiniMapUIPass")
 mod:dofile("scripts/mods/minimap2/OrtoCam")
 
 mod.active = false
@@ -22,7 +23,10 @@ local Minimap3DView = class()
 
 function Minimap3DView:getViewport()
     mod:echo("getViewport")
-    return self.widgets.viewport.element.pass_data[1]
+    if not self.widgets then
+        return
+    end
+    return self.widgets.map_viewport.element.pass_data[1]
 end
 
 --[[
@@ -107,6 +111,9 @@ function Minimap3DView:update(dt)
     end
   
     -- Draw ui elements.
+    if not self.widgets then
+        return
+    end
     self:draw(dt)
 end
 
@@ -119,7 +126,7 @@ end
 function Minimap3DView:on_enter(transition_params)
     mod:echo("on_enter")
     local world_manager = self.world_manager
-    local viewport_widget = self.widgets.viewport
+    local viewport_widget = self.widgets.map_viewport
 
     local status, result = pcall(world_manager:world(self.o_world_name))
     if not status then
@@ -132,7 +139,8 @@ function Minimap3DView:on_enter(transition_params)
         --ScriptWorld.deactivate_viewport(self.o_world, self.o_viewport)
 
         if not self.camera then
-           self.camera = MinimapOrtoCam:new(self.world, self.viewport, self.o_viewport)
+            mod:echo("creat ortho cam")
+            self.camera = MinimapOrtoCam:new(self.world, self.viewport, self.o_viewport)
         end
         ScriptWorld.activate_viewport(self.world, self.viewport)
     end
@@ -151,7 +159,7 @@ end
 function Minimap3DView:on_exit(transition_params)
     mod:echo("on_exit")
     -- happily copied from character_selection_view.lua:suspend (l:573)
-    local viewport_widget = self.widgets.viewport
+    local viewport_widget = self.widgets.map_viewport
 
     if viewport_widget then
         mod:echo("switch to original viewport")
@@ -192,6 +200,7 @@ function Minimap3DView:create_ui_elements()
     self.scenegraph = UISceneGraph.init_scenegraph(DEFINITIONS.scenegraph_definition)
     self.widgets = {}
     for widget_name, widget_definition in pairs(DEFINITIONS.widgets_definition) do
+        mod:echo("init widget")
         mod:echo(widget_name)
         if widget_name == "viewport" then
             widget_definition.style.viewport.viewport_name = self._viewport_name
@@ -222,7 +231,7 @@ function Minimap3DView:draw(dt)
     local input_service   = self:input_service()
     local camera = self.camera
     local active = self.active
-    local viewport = self.widgets.viewport
+    local viewport = self.widgets.map_viewport
     
     UIRenderer.begin_pass(ui_top_renderer, scenegraph, input_service, dt, nil, render_settings)
     
