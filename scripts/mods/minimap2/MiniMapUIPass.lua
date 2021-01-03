@@ -41,7 +41,7 @@ UIPasses.map_viewport = {
 			world_name = style.world_name,
 			viewport = viewport,
 			viewport_name = viewport_name,
-			ui_renderer = mod.ui_renderer,
+			ui_renderer = mod.ui_top_renderer,
 			camera = camera
 		}
 	end,

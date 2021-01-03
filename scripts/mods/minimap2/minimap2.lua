@@ -187,11 +187,13 @@ function Minimap3DView:draw(dt)
         local render_settings = self.render_settings
         local scenegraph      = self.scenegraph
         local input_service   = self:input_service()
-        local widget = self.widgets.map_viewport
+        --local widget = self.widgets.map_viewport
 
         if widget then
             UIRenderer.begin_pass(ui_top_renderer, scenegraph, input_service, dt, nil, render_settings)
-            UIRenderer.draw_widget(ui_top_renderer, widget)
+            for widget_index, widget in pairs(self.widgets) do
+                UIRenderer.draw_widget(ui_top_renderer, widget)
+            end
             UIRenderer.end_pass(ui_top_renderer)    
         end
 	end
@@ -211,7 +213,7 @@ function Minimap3DView:print_game_location()
 end
 
 function Minimap3DView:_show_text(text, pos)
-	Gui.text(self.ui_renderer.gui, text, "materials/fonts/gw_head", 20, "gw_head", pos, Color(0, 255, 0))
+	Gui.text(self.ui_top_renderer.gui, text, "materials/fonts/gw_head", 20, "gw_head", pos, Color(0, 255, 0))
 	return Vector3(pos[1], pos[2] - 30, pos[3])
 end
   
