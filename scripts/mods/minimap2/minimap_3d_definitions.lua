@@ -35,19 +35,11 @@ local scenegraph_definition = {
 		style = {
 			map_viewport = {
 				scenegraph_id = "minimap_3d_viewport",
-                viewport_name = "minimaps_3d_viewport",
+                viewport_name = "minimap_viewport",
                 layer = UILayer.default,
                 viewport_type = "default",
 				enable_sub_gui = true,
 				fov = 120,
-				world_flags = {
-					Application.DISABLE_SOUND,
-                    Application.DISABLE_ESRAM,
-					Application.ENABLE_VOLUMETRICS
-                },
-                object_sets = {
-                    "flow_victory"
-                },
 				camera_position = {
 					0,
 					0.7,
