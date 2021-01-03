@@ -72,6 +72,8 @@ function Minimap3DView:init(ingame_ui_context)
     local world = self.world_manager:world("level_world")
     self.wwise_world = self.world_manager:wwise_world(world)
     mod.view = self
+
+    rawset(_G, "minimap_ui", self)
 end
 
 Minimap3DView._setup_data = function(self, data)
@@ -109,7 +111,14 @@ function Minimap3DView:update(dt)
     if not self.widgets then
         return
     end
-    --self:draw(dt)
+    local key = "V2"
+    if mod._level_key then
+        key = mod._level_key
+    end
+    if self.widgets then
+        self.widgets.item_title.content.text = "map of " .. key
+    end
+    self:draw(dt)
 end
 
 --[[
@@ -118,7 +127,7 @@ end
   also be passed to a transition function.
 --]]
 function Minimap3DView:on_enter(transition_params)
-    -- mod:echo("on_enter")
+    mod:echo("on_enter")
     local status, result = pcall(Managers.world:world("level_world"))
 	if not status then
         local world = Managers.world:world("level_world")
@@ -136,7 +145,7 @@ end
   this view becoming inactive.
 --]]
 function Minimap3DView:on_exit(transition_params)
-    -- mod:echo("on_exit")
+    mod:echo("on_exit")
     self:destroy_ui_elements()
     WwiseWorld.trigger_event(self.wwise_world, "Play_hud_button_close")
 end
@@ -158,45 +167,65 @@ function Minimap3DView:input_service()
 end
 
 function Minimap3DView:create_ui_elements()
-    -- mod:echo("create_ui_elements")
+    mod:echo("create_ui_elements")
     self.scenegraph = UISceneGraph.init_scenegraph(DEFINITIONS.scenegraph_definition)
-    self.widgets = {}
-    for widget_name, widget_definition in pairs(DEFINITIONS.widgets_definition) do
-        if widget_name == "map_viewport" then
-            widget_definition.style.player = self._viewport_name
-            widget_definition.style.map_viewport.world_name = self._world_name
-        end
-        self.widgets[widget_name] = UIWidget.init(widget_definition)
+
+    if self._viewport_widget then
+        UIWidget.destroy(self.ui_renderer, self._viewport_widget)
+        self._viewport_widget = nil
     end
+
+    local widgets = {}
+    local widgets_by_name = {}
+    for widget_name, widget_definition in pairs(DEFINITIONS.widgets_definition) do
+        local widget = UIWidget.init(widget_definition)
+        widgets[#widgets + 1] = widget
+        widgets_by_name[widget_name] = widget
+    end
+
+    self.widgets = widgets_by_name
+    self._widgets_by_name = widgets_by_name
+    self._widgets = widgets
+
+    self._viewport_widget = UIWidget.init(DEFINITIONS.map_viewport)
+
+    UIRenderer.clear_scenegraph_queue(self.ui_renderer)
 end
 
 function Minimap3DView:destroy_ui_elements()
-    mod.active = false
-    if self.widgets then
-        if self.widgets.map_viewport then
-            local ui_renderer = self.ui_renderer
-            local widget = self.widgets.map_viewport
-            UIWidget.destroy(ui_renderer, widget)
-        end
+    mod:echo("destroy_ui_elements")
+	rawset(_G, "minimap_ui", nil)
+    GarbageLeakDetector.register_object(self, "minimap_ui")
+
+    if self._viewport_widget then
+        UIWidget.destroy(self.ui_renderer, self._viewport_widget)
+        self._viewport_widget = nil
     end
-end
+end 
 
 function Minimap3DView:draw(dt)
-    if mod.viewport then
-        local ui_top_renderer = self.ui_top_renderer
-        local render_settings = self.render_settings
-        local scenegraph      = self.scenegraph
-        local input_service   = self:input_service()
-        --local widget = self.widgets.map_viewport
+    if not mod.active then
+        return
+    end
+    local widgets = self.widgets
+    local map_viewport = self._viewport_widget
+    local ui_renderer = self.ui_renderer
+    local ui_top_render = self.ui_top_renderer
+    local render_settings = self.render_settings
+    local scenegraph      = self.scenegraph
+    local input_service   = self:input_service()
+    
+    UIRenderer.begin_pass(ui_top_render, scenegraph, input_service, dt, nil, render_settings)
+    for _, widget in pairs(widgets) do
+        UIRenderer.draw_widget(ui_top_render, widget)
+    end
+    UIRenderer.end_pass(ui_top_render)
 
-        if widget then
-            UIRenderer.begin_pass(ui_top_renderer, scenegraph, input_service, dt, nil, render_settings)
-            for widget_index, widget in pairs(self.widgets) do
-                UIRenderer.draw_widget(ui_top_renderer, widget)
-            end
-            UIRenderer.end_pass(ui_top_renderer)    
-        end
-	end
+    if map_viewport then
+        UIRenderer.begin_pass(ui_renderer, scenegraph, input_service, dt, nil, render_settings)
+        UIRenderer.draw_widget(ui_renderer, map_viewport)
+        UIRenderer.end_pass(ui_renderer)
+    end
 end
 
 function Minimap3DView:print_game_location()
@@ -207,8 +236,12 @@ function Minimap3DView:print_game_location()
     local local_player_unit = player.player_unit
     local player_position = Unit.local_position(local_player_unit, 0)
     local w, h = Application.resolution()
-    local pos = Vector3(20, h - 25, 5) 
-    pos = self:_show_text("pos: " .. player_position.x .. ", " .. player_position.y .. ", " .. player_position.z, pos)
+    local pos = Vector3(20, h - 25, 5)
+    local pos_string = "pos: " .. player_position.x .. ", " .. player_position.y .. ", " .. player_position.z, pos
+    if self.widgets and self.widgets.debug_text then
+        mod:echo(pos_string)
+        self.widgets.debug_text.content.text = pos_string
+    end
     --self:_show_text("viewport_world_name" .. player.viewport_world_name, pos)
 end
 
@@ -297,7 +330,7 @@ mod.toggle_debug_mode = function()
     end
 end
 
-mod.update = function(dt) 
+mod.ee = function(dt) 
 
     if not mod.view then
         return
@@ -355,6 +388,7 @@ mod._get_level_settings = function(self)
         level_key = "inn_level"
     end
     mod._level_key = level_key
+    -- mod:echo(level_key)
     if not mod._level_settings[level_key] then
         mod._level_settings[level_key] = dofile("scripts/mods/minimap2/level_settings")[level_key]
     end 

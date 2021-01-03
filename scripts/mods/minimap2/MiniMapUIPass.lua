@@ -2,11 +2,92 @@ local mod = get_mod("minimap2")
 mod:dofile("scripts/mods/minimap2/OrtoCam")
 -- Pass definition slightly changed from original UIPasses.viewport from scripts/ui/ui_passes
 
+local VIEWPORT_NAME = "minimap_viewport"
+
+-- hook that uses existing code from scripts/util/script_world.lua and adds special case for minimap_viewport
+mod:hook(
+	ScriptWorld,
+	"render",
+	function(func, world)
+		local shading_env = World.get_data(world, "shading_environment")
+
+		if not shading_env then
+			return
+		end
+	
+		local global_free_flight_viewport = World.get_data(world, "global_free_flight_viewport")
+	
+		if global_free_flight_viewport then
+			ShadingEnvironment.blend(shading_env, World.get_data(world, "shading_settings"))
+			ShadingEnvironment.apply(shading_env)
+	
+			if World.has_data(world, "shading_callback") and not Viewport.get_data(global_free_flight_viewport, "avoid_shading_callback") then
+				local callback = World.get_data(world, "shading_callback")
+	
+				callback(world, shading_env, World.get_data(world, "render_queue")[1])
+			end
+	
+			local camera = ScriptViewport.camera(global_free_flight_viewport)
+	
+			Application.render_world(world, camera, global_free_flight_viewport, shading_env)
+		else
+			local render_queue = World.get_data(world, "render_queue")
+	
+			if table.is_empty(render_queue) then
+				Application.update_render_world(world)
+	
+				return
+			end
+	
+			for _, viewport in ipairs(render_queue) do
+				if not World.get_data(world, "avoid_blend") then
+					ShadingEnvironment.blend(shading_env, World.get_data(world, "shading_settings"), World.get_data(world, "override_shading_settings"))
+				end
+	
+				if World.has_data(world, "shading_callback") and not Viewport.get_data(viewport, "avoid_shading_callback") then
+					local callback = World.get_data(world, "shading_callback")
+	
+					callback(world, shading_env, viewport)
+				end
+	
+				if not World.get_data(world, "avoid_blend") then
+					ShadingEnvironment.apply(shading_env)
+				end
+	
+				local camera = ScriptViewport.camera(viewport)
+	
+				Application.render_world(world, camera, viewport, shading_env)
+			end
+		end
+	end
+)
+
+mod:hook(ScriptWorld, "create_shading_environment", function (func, world, shading_environment_name, shading_callback, mood_setting)
+	local shading_env = World.create_shading_environment(world, shading_environment_name)
+	mod.shading_env = World.create_shading_environment(world, shading_environment_name)
+	mod.shading_callback = shading_callback
+	mod.mood_setting = mood_setting
+
+	World.set_data(world, "shading_environment", shading_env)
+	World.set_data(world, "shading_callback", shading_callback)
+	World.set_data(world, "shading_settings", {
+		mood_setting,
+		1
+	})
+
+	return shading_env
+end
+)
+
 UIPasses.map_viewport = {
 	init = function (pass_definition, content, style)
+
+		-- copy of shading environment so we can adjust things without touching the original settings of 3d viewport
+
+
 		-- viewport including camera
 		local world = mod.world
-		local viewport_name = style.viewport_name or "minimap_viewport"
+		local viewport_name = style.viewport_name or VIEWPORT_NAME
 		local viewports = World.get_data(world, "viewports")
 		local player = Managers.player:local_player()
 
@@ -20,17 +101,15 @@ UIPasses.map_viewport = {
 			mod.camera = MinimapOrtoCam:new(mod.world, mod.viewport, mod.player)
 		end
 
-		Viewport.set_data(viewport, "layer", layer or 2)
+		Viewport.set_data(viewport, "layer", layer or 2000)
 		Viewport.set_data(viewport, "active", true)
 		Viewport.set_data(viewport, "name", viewport_name)
 	
 		viewports[viewport_name] = viewport
 	
-		Viewport.set_data(viewport, "avoid_shading_callback", false)
-		Viewport.set_data(viewport, "no_scaling", true)
-	
-		mod.camera:sync()
-		
+		Viewport.set_data(viewport, "avoid_shading_callback", true)
+		Viewport.set_data(viewport, "no_scaling", false)
+			
 		-- sub gui
 		if style.enable_sub_gui then
 			ui_renderer = UIRenderer.create(world, "material", "materials/ui/ui_1080p_hud_atlas_textures", "material", "materials/ui/ui_1080p_hud_single_textures", "material", "materials/ui/ui_1080p_menu_atlas_textures", "material", "materials/ui/ui_1080p_menu_single_textures", "material", "materials/ui/ui_1080p_common", "material", "materials/fonts/gw_fonts")
@@ -41,14 +120,14 @@ UIPasses.map_viewport = {
 			world_name = style.world_name,
 			viewport = viewport,
 			viewport_name = viewport_name,
-			ui_renderer = mod.ui_top_renderer,
+			ui_renderer = ui_renderer,
 			camera = camera
 		}
 	end,
 	destroy = function (ui_renderer, pass_data, pass_definition)
-		local world = mod.world
+		local world = pass_data.world
 		local ui_renderer = mod.ui_renderer
-		local viewport_name = "minimap_viewport"
+		local viewport_name = pass_data.viewport_name
 
 		mod.camera = nil
 		if world then
@@ -64,6 +143,7 @@ UIPasses.map_viewport = {
 		end
 	end,
 	draw = function (ui_renderer, pass_data, ui_scenegraph, pass_definition, ui_style, ui_content, position, size, input_service, dt)
+		local viewport = mod.viewport
 		-- sync cam
 		if not mod.active then
 			mod:echo("not active, bye")
@@ -73,7 +153,28 @@ UIPasses.map_viewport = {
 			mod:echo("not cam, baby")
 			return
 		end
-		mod.camera:sync(dt)
+--		local far = ui_content.far
+		mod.camera:sync(nil, nil, nil, nil, dt)
+
+		-- alignment for viewport
+		local resx = RESOLUTION_LOOKUP.res_w
+		local resy = RESOLUTION_LOOKUP.res_h
+		local inv_scale = RESOLUTION_LOOKUP.inv_scale
+		local w = resx * inv_scale
+		local h = resy * inv_scale
+
+		Viewport.set_data(
+			viewport,
+			"rect",
+			{
+				position.x / w,
+				position.y / h,
+				size.x / w,
+				size.y / h
+			}
+		)
+		Viewport.set_rect(viewport, unpack(Viewport.get_data(viewport, "rect")))
+
 	end,
 	raycast_at_screen_position = function (pass_data, screen_position, result_type, range, collision_filter)
 		mod:echo("should re implement raycasting here")

@@ -43,7 +43,7 @@ end
 
 
 -- moves the orto cam above the current player position
-MinimapOrtoCam.sync = function(self, dt)
+MinimapOrtoCam.sync = function(self, lookAt, far, near, height, dt)
     local world = mod.world
     local viewport = mod.viewport
     local camera = self.camera
@@ -59,7 +59,15 @@ MinimapOrtoCam.sync = function(self, dt)
 		return
     end
 	
-	local settings = mod:_get_level_settings().settings
+	local settings = {
+		height = 200,
+		far = 10000,
+		near = 100
+	}
+	local level = mod:_get_level_settings()
+	if level then
+		settings = level.settings
+	end
 
     -- sync position with player character
 	local player_position = Unit.local_position(local_player_unit, 0)
@@ -67,12 +75,20 @@ MinimapOrtoCam.sync = function(self, dt)
 	camera_position_new.x = player_position.x
 	camera_position_new.y = player_position.y
 
-	local cameraHeight = settings.height or 200
-	local far = settings.far or 10000
-    local near = settings.near or 100
+	local cameraHeight = height or settings.height or 200
+	local zfar = far or settings.far or 10000
+    local znear = near or settings.near or 100
     
 	camera_position_new.z = height
-	local direction = Vector3.normalize(Vector3(0, 0, -1))
+	local dir = {
+		x = 0,
+		y = 0, 
+		z = -1
+	}
+	if lookAt then
+		dir = lookAt
+	end
+	local direction = Vector3.normalize(Vector3(dir.x, dir.y, dir.z))
 	local rotation = Quaternion.look(direction)
 
 	ScriptCamera.set_local_position(camera, camera_position_new)
@@ -83,8 +99,8 @@ MinimapOrtoCam.sync = function(self, dt)
 	Camera.set_projection_type(camera, Camera.ORTHOGRAPHIC)
 	Camera.set_projection_type(shadow_cull_camera, Camera.ORTHOGRAPHIC)
 
-	local cfar = height + far
-	local cnear = height - near
+	local cfar = cameraHeight + zfar
+	local cnear = cameraHeight - znear
 	Camera.set_far_range(camera, cfar)
 	Camera.set_near_range(camera, cnear)
 	Camera.set_far_range(shadow_cull_camera, cfar)
@@ -96,18 +112,5 @@ MinimapOrtoCam.sync = function(self, dt)
 	Camera.set_orthographic_view(camera, min, max, min, max)
 	Camera.set_orthographic_view(shadow_cull_camera, min, max, min, max)
 
-	local s = 20 / 100 -- mod:get("size")
-	local xmin = 1 - s
-	Viewport.set_data(
-		viewport,
-		"rect",
-		{
-			xmin,
-			0,
-			s,
-			s
-		}
-	)
-	Viewport.set_rect(viewport, unpack(Viewport.get_data(viewport, "rect")))
 end
 

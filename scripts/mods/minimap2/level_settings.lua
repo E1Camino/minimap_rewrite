@@ -68,6 +68,7 @@ local keep_level_1_pois = {
 }
 
 local level_data = {
+    -- taal's horn keep
     inn_level = {
         name = "inn_level",
         children = {
@@ -700,6 +701,7 @@ local level_data = {
         },
         settings = inn_default
     },
+    -- fort brachsenbrücke
     fort = {
         name = "fort",
         children = {
@@ -753,6 +755,7 @@ local level_data = {
             height = 400
         }
     },
+    -- against the grain
     farmlands = {
         name = "farmlands",
         children = {
@@ -963,6 +966,34 @@ local level_data = {
             far = 400,
             height = 400
         }
-    }
+    },
+    -- empire in flames
+    ussingen = {
+        name = "ussingen",
+        settings = {
+            area = 12,
+            near = 17,
+            far = 400,
+            height = 400
+        }
+    },
+    nurgle = {
+        name = "nurgle",
+        settings = {
+            area = 12,
+            near = 17,
+            far = 400,
+            height = 400
+        }
+    },
+    warcamp = {
+        name = "warcamp",
+        settings = {
+            area = 12,
+            near = 17,
+            far = 400,
+            height = 400
+        }
+    },
 }
 return level_data
