@@ -3,6 +3,7 @@ mod:dofile("scripts/mods/minimap2/OrtoCam")
 -- Pass definition slightly changed from original UIPasses.viewport from scripts/ui/ui_passes
 
 local VIEWPORT_NAME = "minimap_viewport"
+local _original_layer = 0
 
 -- hook that uses existing code from scripts/util/script_world.lua and adds special case for minimap_viewport
 mod:hook(
@@ -90,10 +91,11 @@ UIPasses.map_viewport = {
 		local viewport_name = style.viewport_name or VIEWPORT_NAME
 		local viewports = World.get_data(world, "viewports")
 		local player = Managers.player:local_player()
-
+		local element_layer = style.layer or 999
+		mod:echo(element_layer)
 		local viewport = mod.viewport or  viewports[viewport_name]
 		if not viewport then
-			viewport = ScriptWorld.create_viewport(world, viewport_name, "default")
+			viewport = ScriptWorld.create_viewport(world, viewport_name, "default", element_layer)
 			mod.viewport = viewport
 		end
 		
@@ -101,7 +103,12 @@ UIPasses.map_viewport = {
 			mod.camera = MinimapOrtoCam:new(mod.world, mod.viewport, mod.player)
 		end
 
-		Viewport.set_data(viewport, "layer", layer or 2000)
+		Viewport.set_data(viewport, "layer", element_layer)
+		_original_layer = World.get_data(world, "layer")
+
+		World.set_data(world, "layer", element_layer)
+		Application.update_render_world(world)
+
 		Viewport.set_data(viewport, "active", true)
 		Viewport.set_data(viewport, "name", viewport_name)
 	
@@ -113,6 +120,7 @@ UIPasses.map_viewport = {
 		-- sub gui
 		if style.enable_sub_gui then
 			ui_renderer = UIRenderer.create(world, "material", "materials/ui/ui_1080p_hud_atlas_textures", "material", "materials/ui/ui_1080p_hud_single_textures", "material", "materials/ui/ui_1080p_menu_atlas_textures", "material", "materials/ui/ui_1080p_menu_single_textures", "material", "materials/ui/ui_1080p_common", "material", "materials/fonts/gw_fonts")
+			mod._map_ui_renderer = ui_renderer
 		end
 		return {
 			deactivated = deactivated,
@@ -129,10 +137,14 @@ UIPasses.map_viewport = {
 		local ui_renderer = mod.ui_renderer
 		local viewport_name = pass_data.viewport_name
 
+		World.set_data(world, "layer", _original_layer)
+
 		mod.camera = nil
 		if world then
 			ScriptWorld.destroy_viewport(world, viewport_name)
 		end
+		Application.update_render_world(world)
+
 
 		mod.viewport = nil
 
@@ -155,7 +167,6 @@ UIPasses.map_viewport = {
 		end
 --		local far = ui_content.far
 		mod.camera:sync(nil, nil, nil, nil, dt)
-
 		-- alignment for viewport
 		local resx = RESOLUTION_LOOKUP.res_w
 		local resy = RESOLUTION_LOOKUP.res_h
@@ -174,7 +185,11 @@ UIPasses.map_viewport = {
 			}
 		)
 		Viewport.set_rect(viewport, unpack(Viewport.get_data(viewport, "rect")))
-
+		Viewport.set_data(viewport, "layer", 999)
+		pass_data.viewport_rect_pos_x = position.x
+		pass_data.viewport_rect_pos_y = position.y
+		pass_data.viewport_rect_size_x = size.x
+		pass_data.viewport_rect_size_y = size.y
 	end,
 	raycast_at_screen_position = function (pass_data, screen_position, result_type, range, collision_filter)
 		mod:echo("should re implement raycasting here")

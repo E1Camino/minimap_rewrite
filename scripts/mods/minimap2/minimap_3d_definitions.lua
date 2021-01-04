@@ -14,17 +14,64 @@ local WINDOW_SIZE = {
 local video_window_width = 426
 local video_window_height = 400
 
+-- hero_window_character_preview_definitions.lua
+local window_default_settings = UISettings.game_start_windows
+local window_background = window_default_settings.background
+local window_frame = window_default_settings.frame
+local window_size = window_default_settings.size
+local window_frame_width = UIFrameSettings[window_frame].texture_sizes.vertical[1]
+local window_frame_height = UIFrameSettings[window_frame].texture_sizes.horizontal[2]
+local window_text_width = window_size[1] - (window_frame_width * 2 + 60)
+-- 
+
 local scenegraph_definition = {
 	root = {
 		is_root = true,
+		size = {
+			1920,
+			1080
+		},
 		position = {
 			0,
 			0,
-			UILayer.ingame_player_list + 100
-		},
+			UILayer.default
+		}
+	},
+	root_fit = {
+		scale = "fit",
 		size = {
-			SIZE_X,
-			SIZE_Y
+			1920,
+			1080
+		},
+		position = {
+			0,
+			0,
+			UILayer.default
+		}
+	},
+	menu_root = {
+		vertical_alignment = "center",
+		parent = "root",
+		horizontal_alignment = "center",
+		size = {
+			1920,
+			1080
+		},
+		position = {
+			0,
+			0,
+			0
+		}
+	},
+	window = {
+		vertical_alignment = "center",
+		parent = "menu_root",
+		horizontal_alignment = "center",
+		size = window_size,
+		position = {
+			0,
+			0,
+			1
 		}
 	},
     screen = {
@@ -57,39 +104,25 @@ local scenegraph_definition = {
 	},
 	background = {
 		vertical_alignment = "center",
-		parent = "rect",
+		parent = "window",
 		horizontal_alignment = "center",
 		position = {
 			0,
 			0,
-			2
+			1
 		},
 		size = {
 			SIZE_X -20,
 			SIZE_Y - 380,
 		}
 	},
-	viewport_background = {
-		vertical_alignment = "top",
-		parent = "rect",
-		horizontal_alignment = "center",
-		position = {
-			0,
-			0,
-			10
-		},
-		size = {
-			WINDOW_SIZE[1] - WINDOW_WIDTH_SPACING * 2,
-			ITEM_SIZE[2] + ITEM_SPACING
-		}
-	},
 	item_title = {
 		vertical_alignment = "top",
-		parent = "background",
+		parent = "map",
 		horizontal_alignment = "center",
 		position = {
 			0,
-			50,
+			-22,
 			21
 		},
 		size = {
@@ -97,60 +130,60 @@ local scenegraph_definition = {
 			1
 		}
 	},
-	info_window_video = {
+	map = {
 		vertical_alignment = "top",
-		parent = "background",
+		parent = "window",
 		horizontal_alignment = "center",
 		size = {
-			video_window_width,
-			video_window_height
+			window_size[1],
+			window_size[2]
 		},
 		position = {
 			0,
-			-10,
-			12
+			0,
+			5
 		}
 	},
 	info_video_edge_left = {
 		vertical_alignment = "top",
-		parent = "info_window_video",
+		parent = "window",
 		horizontal_alignment = "right",
 		size = {
-			230,
+			-window_size[1] / 2,
 			59
 		},
 		position = {
-			-213,
+			-window_size[1] / 2 - 40,
 			12,
 			13
 		}
 	},
 	info_video_edge_right = {
 		vertical_alignment = "top",
-		parent = "info_window_video",
+		parent = "window",
 		horizontal_alignment = "left",
 		size = {
-			230,
+			-window_size[1] / 2,
 			59
 		},
 		position = {
-			213,
+			window_size[1] / 2 + 40,
 			12,
 			13
 		}
 	},
 	viewport = {
-		parent = "info_window_video",
+		parent = "window",
 		size = {
-			video_window_width,
-			video_window_height
+			window_size[1],
+			window_size[2]
 		},
 		horizontal_alignment = "center",
 		vertical_alignment = "top",
 		position = {
 			0,
-			- video_window_height,
-			400
+			0,
+			900
 		}
 	},
   }
@@ -198,10 +231,12 @@ local background_color = {
 	10
 }
 local widgets_definition = {
-	item_title = UIWidgets.create_simple_text("equipment", "item_title", nil, nil, title_text_style),
-	rect = UIWidgets.create_simple_rect("rect", rect_color),
-	background = UIWidgets.create_background_with_frame("background", scenegraph_definition.background.size, "menu_frame_bg_01", "menu_frame_02"),
-	info_window_video = UIWidgets.create_frame("info_window_video", scenegraph_definition.info_window_video.size, "menu_frame_06"),
+	-- window = UIWidgets.create_frame("window", window_size, "", 1),
+	window = UIWidgets.create_frame("window", scenegraph_definition.window.size, "menu_frame_06"),
+	item_title = UIWidgets.create_title_text("n/a", "item_title"),
+	-- rect = UIWidgets.create_simple_rect("rect", rect_color),
+	--background = UIWidgets.create_background_with_frame("background", scenegraph_definition.background.size, "menu_frame_bg_01"," menu_frame_02"),
+	-- info_window_video = UIWidgets.create_frame("info_window_video", scenegraph_definition.info_window_video.size, "menu_frame_06"),
 	info_video_edge_left = UIWidgets.create_simple_texture("frame_detail_03", "info_video_edge_left"),
 	info_video_edge_right = UIWidgets.create_simple_uv_texture("frame_detail_03", {
 		{
@@ -222,7 +257,7 @@ local widgets_definition = {
 	-- 	100,
 	-- 	100
 	-- }),
-	viewport_background = UIWidgets.create_rect_with_frame("viewport_background", scenegraph_definition.viewport_background.size, background_color, "menu_frame_06"),
+	-- viewport_background = UIWidgets.create_rect_with_frame("viewport_background", scenegraph_definition.viewport_background.size, background_color, "menu_frame_06"),
 }
 local map_viewport = {
 	scenegraph_id = "viewport",
@@ -239,8 +274,8 @@ local map_viewport = {
 		map_viewport = {
 			scenegraph_id = "viewport",
 			viewport_name = "minimap_viewport",
-			layer = UILayer.default + 21,
-			viewport_type = "default",
+			layer = 999,
+			viewport_type = "overlay",
 			enable_sub_gui = true,
 			fov = 120,
 			camera_position = {

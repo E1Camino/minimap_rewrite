@@ -40,7 +40,7 @@ function Minimap3DView:init(ingame_ui_context)
 
     self._input_service_name = "minimap_3d_input"
 	self.ui_renderer = ingame_ui_context.ui_renderer
-	self.ui_top_renderer = ingame_ui_context.ui_top_renderer
+    self.ui_top_renderer = ingame_ui_context.ui_top_renderer
 	self.ingame_ui = ingame_ui_context.ingame_ui
 	self.statistics_db = ingame_ui_context.statistics_db
 	self.stats_id = ingame_ui_context.stats_id
@@ -112,11 +112,17 @@ function Minimap3DView:update(dt)
         return
     end
     local key = "V2"
+    local display_name = "V2"
     if mod._level_key then
         key = mod._level_key
+        display_name = key
+        local settings = LevelSettings[key]
+        if settings then
+            display_name = settings.display_name
+        end
     end
     if self.widgets then
-        self.widgets.item_title.content.text = "map of " .. key
+        self.widgets.item_title.content.text = display_name
     end
     self:draw(dt)
 end
@@ -201,6 +207,9 @@ function Minimap3DView:destroy_ui_elements()
         UIWidget.destroy(self.ui_renderer, self._viewport_widget)
         self._viewport_widget = nil
     end
+    if self._widgets_by_name.window then
+        UIWidget.destroy(self.ui_renderer, self._widgets_by_name.window)
+    end
 end 
 
 function Minimap3DView:draw(dt)
@@ -210,16 +219,16 @@ function Minimap3DView:draw(dt)
     local widgets = self.widgets
     local map_viewport = self._viewport_widget
     local ui_renderer = self.ui_renderer
-    local ui_top_render = self.ui_top_renderer
+    local ui_top_renderer = mod._map_ui_renderer or self.ui_top_renderer
     local render_settings = self.render_settings
     local scenegraph      = self.scenegraph
     local input_service   = self:input_service()
     
-    UIRenderer.begin_pass(ui_top_render, scenegraph, input_service, dt, nil, render_settings)
+    UIRenderer.begin_pass(ui_top_renderer, scenegraph, input_service, dt, nil, render_settings)
     for _, widget in pairs(widgets) do
-        UIRenderer.draw_widget(ui_top_render, widget)
+        UIRenderer.draw_widget(ui_top_renderer, widget)
     end
-    UIRenderer.end_pass(ui_top_render)
+    UIRenderer.end_pass(ui_top_renderer)
 
     if map_viewport then
         UIRenderer.begin_pass(ui_renderer, scenegraph, input_service, dt, nil, render_settings)
@@ -286,7 +295,7 @@ local view_data = {
         -- named 'minimap_3d_viewminimap_3d_view' and switches current view to 'custom_view'.
         minimap_3d_view_open = function(ingame_ui, transition_params)
             if ShowCursorStack.stack_depth == 0 then
-                -- ShowCursorStack.push()
+                ShowCursorStack.push()
             end
 
             -- ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "keyboard", 1)
@@ -299,7 +308,7 @@ local view_data = {
 
         -- This transition hides mouse cursor, unblocks all input services and sets current view to nil.
         minimap_3d_view_close = function(ingame_ui, transition_params)
-            -- ShowCursorStack.pop()
+            ShowCursorStack.pop()
 
             -- ingame_ui.input_manager:device_unblock_all_services("keyboard", 1)
             -- ingame_ui.input_manager:device_unblock_all_services("mouse", 1)
