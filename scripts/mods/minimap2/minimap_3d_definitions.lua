@@ -411,8 +411,8 @@ local widgets_definition = {
 	-- 	960,
 	-- 	1080
 	-- }, nil, true),
-	-- exit_button = UIWidgets.create_default_button("exit_button", scenegraph_definition.exit_button.size, nil, nil, Localize("menu_close"), 24, nil, "button_detail_04", 34, disable_with_gamepad),
-	back_button = UIWidgets.create_default_button("exit_button", scenegraph_definition.exit_button.size, nil, nil, Localize("menu_back"), 24, nil, "button_detail_04", 34, disable_with_gamepad),
+	exit_button = UIWidgets.create_default_button("exit_button", scenegraph_definition.exit_button.size, nil, nil, Localize("menu_close"), 24, nil, "button_detail_04", 34, disable_with_gamepad),
+	-- back_button = UIWidgets.create_default_button("exit_button", scenegraph_definition.exit_button.size, nil, nil, Localize("menu_back"), 24, nil, "button_detail_04", 34, disable_with_gamepad),
 	title = UIWidgets.create_simple_texture("frame_title_bg", "title"),
 	title_bg = UIWidgets.create_background("title_bg", scenegraph_definition.title_bg.size, "menu_frame_bg_02"),
 	title_text = UIWidgets.create_simple_text(Localize("start_game_view_title"), "title_text", nil, nil, title_text_style),
@@ -512,9 +512,46 @@ local map_viewport = {
 		debug_text = "n/a",
 	}
 }
+local animation_definitions = {
+	on_enter = {
+		{
+			name = "fade_in",
+			start_progress = 0,
+			end_progress = 0.3,
+			init = function (ui_scenegraph, scenegraph_definition, widgets, params)
+				params.render_settings.alpha_multiplier = 0
+			end,
+			update = function (ui_scenegraph, scenegraph_definition, widgets, progress, params)
+				local anim_progress = math.easeOutCubic(progress)
+				params.render_settings.alpha_multiplier = 1
+			end,
+			on_complete = function (ui_scenegraph, scenegraph_definition, widgets, params)
+				return
+			end
+		}
+	},
+	on_exit = {
+		{
+			name = "fade_out",
+			start_progress = 0,
+			end_progress = 0.3,
+			init = function (ui_scenegraph, scenegraph_definition, widgets, params)
+				params.render_settings.alpha_multiplier = 1
+			end,
+			update = function (ui_scenegraph, scenegraph_definition, widgets, progress, params)
+				local anim_progress = math.easeOutCubic(progress)
+				params.render_settings.alpha_multiplier = 1
+			end,
+			on_complete = function (ui_scenegraph, scenegraph_definition, widgets, params)
+				return
+			end
+		}
+	}
+}
   
 return {
     scenegraph_definition = scenegraph_definition,
 	widgets_definition = widgets_definition,
-	map_viewport = map_viewport
+	map_viewport = map_viewport,
+	animation_definitions = animation_definitions
 }
