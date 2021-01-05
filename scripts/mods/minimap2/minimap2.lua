@@ -4,6 +4,7 @@ mod:dofile("scripts/mods/minimap2/MiniMapUIPass")
 
 mod.active = false
 mod._level_settings = {}
+local input_service_name = "minimap_3d_input"
 
 local DEFINITIONS = mod:dofile("scripts/mods/minimap2/minimap_3d_definitions")
 
@@ -38,7 +39,7 @@ function Minimap3DView:init(ingame_ui_context)
     self._viewport_name = "minimap_3d_viewport"
     self._has_terrain = not not rawget(_G, "TerrainDecoration")
 
-    self._input_service_name = "minimap_3d_input"
+    self._input_service_name = input_service_name
 	self.ui_renderer = ingame_ui_context.ui_renderer
     self.ui_top_renderer = ingame_ui_context.ui_top_renderer
 	self.ingame_ui = ingame_ui_context.ingame_ui
@@ -133,8 +134,11 @@ function Minimap3DView:update(dt)
 end
 
 function Minimap3DView:post_update(dt, t)
-    self._ui_animator:update(dt)
-    self:_update_animations(dt)
+    if self._ui_animator then
+        self._ui_animator:update(dt)
+        self:_update_animations(dt)
+    end
+
     if not self._transition_timer then
         self:_handle_input(dt, t)
     end
@@ -161,8 +165,10 @@ function Minimap3DView:on_enter(transition_params)
         self:create_ui_elements(mod.world, "minimap", "default", 2)
 	end
     WwiseWorld.trigger_event(self._wwise_world_sound, "Play_hud_trophy_open")
+    if not mod.active then
+        --self:_start_transition_animation("on_enter", "on_enter")
+    end
     mod.active = true
-    -- self:_start_transition_animation("on_enter", "on_enter")
 end
 
 
@@ -205,7 +211,6 @@ function Minimap3DView:create_ui_elements()
     local widgets = {}
     local widgets_by_name = {}
     for widget_name, widget_definition in pairs(DEFINITIONS.widgets_definition) do
-        mod:echo("init")
         local widget = UIWidget.init(widget_definition)
         widgets[#widgets + 1] = widget
         widgets_by_name[widget_name] = widget
@@ -282,16 +287,24 @@ function Minimap3DView:_update_animations(dt)
 		-- end
 	end
 
-	-- local widgets_by_name = self._widgets_by_name
-	-- local exit_button = widgets_by_name.exit_button
+    local widgets_by_name = self._widgets_by_name
+    if not widgets_by_name then
+        return
+    end
+--    mod:echo("exit button")
+	local exit_button = widgets_by_name.exit_button
   	-- local confirm_button = widgets_by_name.confirm_button
 
-	-- UIWidgetUtils.animate_default_button(exit_button, dt)
+	UIWidgetUtils.animate_default_button(exit_button, dt)
 	--UIWidgetUtils.animate_default_button(confirm_button, dt)
 end
 
 function Minimap3DView:_handle_input(dt, t)
-	local widgets_by_name = self._widgets_by_name
+    local widgets_by_name = self._widgets_by_name
+    if not widgets_by_name then
+        mod:echo("missing widgets_by_name")
+        return
+    end
 	local input_service = self:input_service()
 	local input_pressed = input_service:get("toggle_menu", true)
 	local gamepad_active = Managers.input:is_device_active("gamepad")
@@ -300,9 +313,9 @@ function Minimap3DView:_handle_input(dt, t)
 
 	UIWidgetUtils.animate_default_button(exit_button, dt)
 
-	-- if self:_is_button_hover_enter(exit_button) then
-	-- 	self:play_sound("play_gui_equipment_button_hover")
-	-- end
+    if self:_is_button_hover_enter(exit_button) then
+        WwiseWorld.trigger_event(self._wwise_world_sound, "play_gui_equipment_button_hover")
+	end
 
 	if input_pressed or self:_is_button_pressed(exit_button) then
 		self:exit()
@@ -340,6 +353,13 @@ function Minimap3DView:_is_button_pressed(widget)
 
 		return true
 	end
+end
+
+function Minimap3DView:_is_button_hover_enter(widget)
+	local content = widget.content
+	local hotspot = content.button_hotspot
+
+	return hotspot.on_hover_enter
 end
 
 
@@ -407,9 +427,9 @@ local view_data = {
                 ShowCursorStack.push()
             end
 
-            -- ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "keyboard", 1)
-            -- ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "mouse", 1)
-            -- ingame_ui.input_manager:block_device_except_service("minimap_3d_view", "gamepad", 1)
+            ingame_ui.input_manager:block_device_except_service(input_service_name, "keyboard", 1)
+            ingame_ui.input_manager:block_device_except_service(input_service_name, "mouse", 1)
+            -- ingame_ui.input_manager:block_device_except_service(input_service_name, "gamepad", 1)
 
             ingame_ui.menu_active = true
             ingame_ui.current_view = "minimap_3d_view"
@@ -419,8 +439,8 @@ local view_data = {
         minimap_3d_view_close = function(ingame_ui, transition_params)
             ShowCursorStack.pop()
 
-            -- ingame_ui.input_manager:device_unblock_all_services("keyboard", 1)
-            -- ingame_ui.input_manager:device_unblock_all_services("mouse", 1)
+            ingame_ui.input_manager:device_unblock_all_services("keyboard", 1)
+            ingame_ui.input_manager:device_unblock_all_services("mouse", 1)
             -- ingame_ui.input_manager:device_unblock_all_services("gamepad", 1)
 
             ingame_ui.menu_active = false

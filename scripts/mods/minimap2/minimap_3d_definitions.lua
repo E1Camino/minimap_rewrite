@@ -4,7 +4,8 @@ local small_window_frame = window_default_settings.frame
 local small_window_size = window_default_settings.size
 local small_window_spacing = window_default_settings.spacing
 local large_window_frame = window_default_settings.large_window_frame
-local large_window_frame_width = UIFrameSettings[large_window_frame].texture_sizes.vertical[1]
+-- local large_window_frame_width = UIFrameSettings[large_window_frame].texture_sizes.vertical[1]
+local large_window_frame_width = 22
 local inner_window_size = {
 	small_window_size[1] * 3 + small_window_spacing * 2 + large_window_frame_width * 2,
 	small_window_size[2] + 80
@@ -13,6 +14,7 @@ local window_size = {
 	inner_window_size[1] + 50,
 	inner_window_size[2]
 }
+local window_frame_width = large_window_frame_width
 local scenegraph_definition = {
 	--- start_game_state_settings_overview_definitions.lua :P
 	root = {
@@ -198,8 +200,8 @@ local scenegraph_definition = {
 			110
 		},
 		position = {
-			large_window_frame_width,
-			-large_window_frame_width,
+			22,
+			-22,
 			12
 		}
 	},
@@ -246,22 +248,64 @@ local scenegraph_definition = {
 		}
 	},
 
-
--------- custom stuff added by me
-	map = {
-		vertical_alignment = "top",
+	bottom_panel_left = {
+		vertical_alignment = "bottom",
 		parent = "window",
 		horizontal_alignment = "center",
 		size = {
-			window_size[1],
-			window_size[2]
+			634,
+			80
 		},
 		position = {
-			0,
-			0,
-			5
+			-317,
+			large_window_frame_width,
+			9
 		}
 	},
+	bottom_panel_right = {
+		vertical_alignment = "bottom",
+		parent = "window",
+		horizontal_alignment = "center",
+		size = {
+			634,
+			80
+		},
+		position = {
+			317,
+			large_window_frame_width,
+			9
+		}
+	},
+	essence_panel = {
+		vertical_alignment = "bottom",
+		parent = "window",
+		horizontal_alignment = "left",
+		size = {
+			327,
+			48
+		},
+		position = {
+			large_window_frame_width,
+			large_window_frame_width + 110,
+			8
+		}
+	},
+-------- custom stuff added by me
+	-- map = {
+	-- 	vertical_alignment = "top",
+	-- 	parent = "window",
+	-- 	horizontal_alignment = "center",
+	-- 	size = {
+	-- 		window_size[1],
+	-- 		window_size[2]
+	-- 	},
+	-- 	position = {
+	-- 		0,
+	-- 		0,
+	-- 		5
+	-- 	},
+	-- },
+
 	info_video_edge_left = {
 		vertical_alignment = "top",
 		parent = "window",
@@ -293,14 +337,14 @@ local scenegraph_definition = {
 	viewport = {
 		parent = "inner_window",
 		size = {
-			window_size[1],
-			window_size[2]
+			window_size[1] - large_window_frame_width * 2 + 8,
+			window_size[2] - large_window_frame_width * 2 + 6
 		},
 		horizontal_alignment = "center",
 		vertical_alignment = "top",
 		position = {
-			0,
-			0,
+			1,
+			- large_window_frame_width + 4,
 			900
 		}
 	},
@@ -417,6 +461,17 @@ local widgets_definition = {
 	title_bg = UIWidgets.create_background("title_bg", scenegraph_definition.title_bg.size, "menu_frame_bg_02"),
 	title_text = UIWidgets.create_simple_text(Localize("start_game_view_title"), "title_text", nil, nil, title_text_style),
 
+	bottom_panel_left = UIWidgets.create_simple_texture("athanor_power_bg", "bottom_panel_left"),
+	bottom_panel_right = UIWidgets.create_simple_uv_texture("athanor_power_bg", {
+		{
+			1,
+			0
+		},
+		{
+			0,
+			1
+		}
+	}, "bottom_panel_right"),
 	top_corner_left = UIWidgets.create_simple_texture("athanor_decoration_corner", "top_corner_left"),
 	top_corner_right = UIWidgets.create_simple_uv_texture("athanor_decoration_corner", {
 		{
@@ -448,7 +503,10 @@ local widgets_definition = {
 			0
 		}
 	}, "bottom_corner_right"),
-
+	essence_panel = UIWidgets.create_simple_rotated_texture("athanor_panel_front",  math.pi * -0.5, {
+		large_window_frame_width + 4,
+		large_window_frame_width
+	}, "essence_panel"),
 	-- window = UIWidgets.create_frame("window", window_size, "", 1),
 	-- window = UIWidgets.create_frame("window", scenegraph_definition.window.size, "menu_frame_06"),
 	-- item_title = UIWidgets.create_title_text("n/a", "item_title"),
