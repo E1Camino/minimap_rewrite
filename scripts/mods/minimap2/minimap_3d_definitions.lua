@@ -1,44 +1,22 @@
-local SIZE_X = 1920
-local SIZE_Y = 1080
-local ITEM_SIZE = {
-	124,
-	124
-}
-local ITEM_SPACING = 30
-local NUM_ITEM_SLOTS = 7
-local WINDOW_WIDTH_SPACING = 50
-local WINDOW_SIZE = {
-	ITEM_SIZE[1] * NUM_ITEM_SLOTS + (NUM_ITEM_SLOTS - 1) * ITEM_SPACING + WINDOW_WIDTH_SPACING * 2,
-	550
-}
-local video_window_width = 426
-local video_window_height = 400
-
--- hero_window_character_preview_definitions.lua
 local window_default_settings = UISettings.game_start_windows
-local window_background = window_default_settings.background
-local window_frame = window_default_settings.frame
-local window_size = window_default_settings.size
-local window_frame_width = UIFrameSettings[window_frame].texture_sizes.vertical[1]
-local window_frame_height = UIFrameSettings[window_frame].texture_sizes.horizontal[2]
-local window_text_width = window_size[1] - (window_frame_width * 2 + 60)
--- 
-
+local small_window_background = window_default_settings.background
+local small_window_frame = window_default_settings.frame
+local small_window_size = window_default_settings.size
+local small_window_spacing = window_default_settings.spacing
+local large_window_frame = window_default_settings.large_window_frame
+local large_window_frame_width = UIFrameSettings[large_window_frame].texture_sizes.vertical[1]
+local inner_window_size = {
+	small_window_size[1] * 3 + small_window_spacing * 2 + large_window_frame_width * 2,
+	small_window_size[2] + 80
+}
+local window_size = {
+	inner_window_size[1] + 50,
+	inner_window_size[2]
+}
 local scenegraph_definition = {
+	--- start_game_state_settings_overview_definitions.lua :P
 	root = {
 		is_root = true,
-		size = {
-			1920,
-			1080
-		},
-		position = {
-			0,
-			0,
-			UILayer.default
-		}
-	},
-	root_fit = {
-		scale = "fit",
 		size = {
 			1920,
 			1080
@@ -63,73 +41,213 @@ local scenegraph_definition = {
 			0
 		}
 	},
+	screen = {
+		scale = "fit",
+		size = {
+			1920,
+			1080
+		},
+		position = {
+			0,
+			0,
+			UILayer.default
+		}
+	},
+	header = {
+		vertical_alignment = "top",
+		parent = "menu_root",
+		horizontal_alignment = "center",
+		size = {
+			1920,
+			50
+		},
+		position = {
+			0,
+			-20,
+			100
+		}
+	},
 	window = {
 		vertical_alignment = "center",
-		parent = "menu_root",
+		parent = "screen",
 		horizontal_alignment = "center",
 		size = window_size,
 		position = {
 			0,
 			0,
-			1
+			0
 		}
 	},
-    screen = {
-		vertical_alignment = "center",
-		parent = "root",
-		horizontal_alignment = "center",
-		size = {
-			SIZE_X,
-			SIZE_Y
-		},
-		position = {
-			0,
-			0,
-			1
-		},
-	},
-	rect = {
-		vertical_alignment = "bottom",
-		parent = "screen",
-		horizontal_alignment = "center",
-		position = {
-			0,
-			160,
-			1
-		},
-		size = {
-			SIZE_X,
-			SIZE_Y - 360
-		}
-	},
-	background = {
+	window_background = {
 		vertical_alignment = "center",
 		parent = "window",
 		horizontal_alignment = "center",
+		size = {
+			window_size[1] - 5,
+			window_size[2] - 5
+		},
 		position = {
 			0,
 			0,
-			1
-		},
-		size = {
-			SIZE_X -20,
-			SIZE_Y - 380,
+			0
 		}
 	},
-	item_title = {
-		vertical_alignment = "top",
-		parent = "map",
+	window_background_mask = {
+		vertical_alignment = "center",
+		parent = "window",
 		horizontal_alignment = "center",
+		size = {
+			window_size[1] - 5,
+			window_size[2] - 5
+		},
 		position = {
 			0,
-			-22,
-			21
-		},
-		size = {
-			WINDOW_SIZE[1],
+			0,
 			1
 		}
 	},
+	inner_window = {
+		vertical_alignment = "center",
+		parent = "window",
+		horizontal_alignment = "center",
+		size = inner_window_size,
+		position = {
+			0,
+			0,
+			1
+		}
+	},
+	inner_window_header = {
+		vertical_alignment = "top",
+		parent = "inner_window",
+		horizontal_alignment = "center",
+		size = {
+			inner_window_size[1],
+			50
+		},
+		position = {
+			0,
+			0,
+			1
+		}
+	},
+	exit_button = {
+		vertical_alignment = "bottom",
+		parent = "window",
+		horizontal_alignment = "center",
+		size = {
+			380,
+			42
+		},
+		position = {
+			0,
+			-16,
+			10
+		}
+	},
+	title = {
+		vertical_alignment = "top",
+		parent = "window",
+		horizontal_alignment = "center",
+		size = {
+			658,
+			60
+		},
+		position = {
+			0,
+			34,
+			10
+		}
+	},
+	title_bg = {
+		vertical_alignment = "top",
+		parent = "title",
+		horizontal_alignment = "center",
+		size = {
+			410,
+			40
+		},
+		position = {
+			0,
+			-15,
+			-1
+		}
+	},
+	title_text = {
+		vertical_alignment = "center",
+		parent = "title",
+		horizontal_alignment = "center",
+		size = {
+			350,
+			50
+		},
+		position = {
+			0,
+			-3,
+			2
+		}
+	},
+------- hero_window_weave_forge_panel_definitions.lua
+
+	top_corner_left = {
+		vertical_alignment = "top",
+		parent = "window",
+		horizontal_alignment = "left",
+		size = {
+			110,
+			110
+		},
+		position = {
+			large_window_frame_width,
+			-large_window_frame_width,
+			12
+		}
+	},
+	top_corner_right = {
+		vertical_alignment = "top",
+		parent = "window",
+		horizontal_alignment = "right",
+		size = {
+			110,
+			110
+		},
+		position = {
+			-large_window_frame_width,
+			-large_window_frame_width,
+			12
+		}
+	},
+	bottom_corner_left = {
+		vertical_alignment = "bottom",
+		parent = "window",
+		horizontal_alignment = "left",
+		size = {
+			110,
+			110
+		},
+		position = {
+			large_window_frame_width,
+			large_window_frame_width,
+			12
+		}
+	},
+	bottom_corner_right = {
+		vertical_alignment = "bottom",
+		parent = "window",
+		horizontal_alignment = "right",
+		size = {
+			110,
+			110
+		},
+		position = {
+			-large_window_frame_width,
+			large_window_frame_width,
+			12
+		}
+	},
+
+
+-------- custom stuff added by me
 	map = {
 		vertical_alignment = "top",
 		parent = "window",
@@ -173,7 +291,7 @@ local scenegraph_definition = {
 		}
 	},
 	viewport = {
-		parent = "window",
+		parent = "inner_window",
 		size = {
 			window_size[1],
 			window_size[2]
@@ -186,8 +304,8 @@ local scenegraph_definition = {
 			900
 		}
 	},
-  }
-  local debug_text_style = {
+}
+local debug_text_style = {
 	font_size = 32,
 	upper_case = true,
 	localize = false,
@@ -230,15 +348,77 @@ local background_color = {
 	10,
 	10
 }
+local weave_title_text_style = {
+	font_size = 36,
+	upper_case = true,
+	localize = false,
+	use_shadow = true,
+	word_wrap = true,
+	horizontal_alignment = "center",
+	vertical_alignment = "bottom",
+	font_type = "hell_shark_header",
+	text_color = Colors.get_color_table_with_alpha("font_default", 255),
+	offset = {
+		0,
+		0,
+		2
+	}
+}
+local description_text_style = {
+	word_wrap = true,
+	font_size = 22,
+	localize = false,
+	use_shadow = true,
+	horizontal_alignment = "center",
+	vertical_alignment = "top",
+	font_type = "hell_shark",
+	text_color = Colors.get_color_table_with_alpha("font_default", 255),
+	offset = {
+		0,
+		0,
+		2
+	}
+}
+local title_text_style = {
+	use_shadow = true,
+	upper_case = true,
+	localize = false,
+	font_size = 28,
+	horizontal_alignment = "center",
+	vertical_alignment = "center",
+	dynamic_font_size = true,
+	font_type = "hell_shark_header",
+	text_color = Colors.get_color_table_with_alpha("font_title", 255),
+	offset = {
+		0,
+		0,
+		2
+	}
+}
+local disable_with_gamepad = true
 local widgets_definition = {
-	-- window = UIWidgets.create_frame("window", window_size, "", 1),
-	window = UIWidgets.create_frame("window", scenegraph_definition.window.size, "menu_frame_06"),
-	item_title = UIWidgets.create_title_text("n/a", "item_title"),
-	-- rect = UIWidgets.create_simple_rect("rect", rect_color),
-	--background = UIWidgets.create_background_with_frame("background", scenegraph_definition.background.size, "menu_frame_bg_01"," menu_frame_02"),
-	-- info_window_video = UIWidgets.create_frame("info_window_video", scenegraph_definition.info_window_video.size, "menu_frame_06"),
-	info_video_edge_left = UIWidgets.create_simple_texture("frame_detail_03", "info_video_edge_left"),
-	info_video_edge_right = UIWidgets.create_simple_uv_texture("frame_detail_03", {
+	window = UIWidgets.create_frame("window", scenegraph_definition.window.size, "menu_frame_11"),
+	-- window_background = UIWidgets.create_tiled_texture("window_background", "menu_frame_bg_01", {
+	-- 	960,
+	-- 	1080
+	-- }, nil, nil, {
+	-- 	255,
+	-- 	100,
+	-- 	100,
+	-- 	100
+	-- }),
+	-- window_background_mask = UIWidgets.create_tiled_texture("window_background_mask", "menu_frame_bg_01", {
+	-- 	960,
+	-- 	1080
+	-- }, nil, true),
+	-- exit_button = UIWidgets.create_default_button("exit_button", scenegraph_definition.exit_button.size, nil, nil, Localize("menu_close"), 24, nil, "button_detail_04", 34, disable_with_gamepad),
+	back_button = UIWidgets.create_default_button("exit_button", scenegraph_definition.exit_button.size, nil, nil, Localize("menu_back"), 24, nil, "button_detail_04", 34, disable_with_gamepad),
+	title = UIWidgets.create_simple_texture("frame_title_bg", "title"),
+	title_bg = UIWidgets.create_background("title_bg", scenegraph_definition.title_bg.size, "menu_frame_bg_02"),
+	title_text = UIWidgets.create_simple_text(Localize("start_game_view_title"), "title_text", nil, nil, title_text_style),
+
+	top_corner_left = UIWidgets.create_simple_texture("athanor_decoration_corner", "top_corner_left"),
+	top_corner_right = UIWidgets.create_simple_uv_texture("athanor_decoration_corner", {
 		{
 			1,
 			0
@@ -247,7 +427,45 @@ local widgets_definition = {
 			0,
 			1
 		}
-	}, "info_video_edge_right"),
+	}, "top_corner_right"),
+	bottom_corner_left = UIWidgets.create_simple_uv_texture("athanor_decoration_corner", {
+		{
+			0,
+			1
+		},
+		{
+			1,
+			0
+		}
+	}, "bottom_corner_left"),
+	bottom_corner_right = UIWidgets.create_simple_uv_texture("athanor_decoration_corner", {
+		{
+			1,
+			1
+		},
+		{
+			0,
+			0
+		}
+	}, "bottom_corner_right"),
+
+	-- window = UIWidgets.create_frame("window", window_size, "", 1),
+	-- window = UIWidgets.create_frame("window", scenegraph_definition.window.size, "menu_frame_06"),
+	-- item_title = UIWidgets.create_title_text("n/a", "item_title"),
+	-- background = UIWidgets.create_background_with_frame("background", scenegraph_definition.background.size, "menu_frame_11"," menu_frame_02"),
+	-- background_mask = UIWidgets.create_simple_texture("mask_rect", "background_mask"),
+	-- info_window_video = UIWidgets.create_frame("info_window_video", scenegraph_definition.info_window_video.size, "menu_frame_06"),
+	-- info_video_edge_left = UIWidgets.create_simple_texture("frame_detail_03", "info_video_edge_left"),
+	-- info_video_edge_right = UIWidgets.create_simple_uv_texture("frame_detail_03", {
+	-- 	{
+	-- 		1,
+	-- 		0
+	-- 	},
+	-- 	{
+	-- 		0,
+	-- 		1
+	-- 	}
+	-- }, "info_video_edge_right"),
 	-- window_background = UIWidgets.create_tiled_texture("window", "menu_frame_bg_01", {
 	-- 	960,
 	-- 	1080

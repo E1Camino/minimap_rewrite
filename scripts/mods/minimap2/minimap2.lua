@@ -121,8 +121,8 @@ function Minimap3DView:update(dt)
             display_name = settings.display_name
         end
     end
-    if self.widgets then
-        self.widgets.item_title.content.text = display_name
+    if self._widgets_by_name.title_text then
+        self._widgets_by_name.title_text.content.text = Localize(display_name)
     end
     self:draw(dt)
 end
@@ -184,6 +184,7 @@ function Minimap3DView:create_ui_elements()
     local widgets = {}
     local widgets_by_name = {}
     for widget_name, widget_definition in pairs(DEFINITIONS.widgets_definition) do
+        mod:echo("init")
         local widget = UIWidget.init(widget_definition)
         widgets[#widgets + 1] = widget
         widgets_by_name[widget_name] = widget
@@ -401,7 +402,7 @@ mod._get_level_settings = function(self)
     if not mod._level_settings[level_key] then
         mod._level_settings[level_key] = dofile("scripts/mods/minimap2/level_settings")[level_key]
     end 
-	return dofile("scripts/mods/minimap2/level_settings")[level_key]
+	return mod._level_settings[level_key]
 end
 
 mod:command("m_debug", "Shows debug stuff for Minimap mod", mod.print_debug)

@@ -92,7 +92,7 @@ UIPasses.map_viewport = {
 		local viewports = World.get_data(world, "viewports")
 		local player = Managers.player:local_player()
 		local element_layer = style.layer or 999
-		mod:echo(element_layer)
+-- 		mod:echo(element_layer)
 		local viewport = mod.viewport or  viewports[viewport_name]
 		if not viewport then
 			viewport = ScriptWorld.create_viewport(world, viewport_name, "default", element_layer)
