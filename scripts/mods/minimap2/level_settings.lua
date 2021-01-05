@@ -578,7 +578,7 @@ local level_data = {
                         }
                     },
                     sienna = {
-                        name = "sienna",
+                        name = "location_keep_siennas_room",
                         check = {
                             type = "above",
                             height = 10

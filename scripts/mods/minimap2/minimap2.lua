@@ -4,6 +4,7 @@ mod:dofile("scripts/mods/minimap2/MiniMapUIPass")
 
 mod.active = false
 mod._level_settings = {}
+mod._level_key = nil
 local input_service_name = "minimap_3d_input"
 
 local DEFINITIONS = mod:dofile("scripts/mods/minimap2/minimap_3d_definitions")
@@ -35,6 +36,7 @@ function Minimap3DView:init(ingame_ui_context)
     -- mod:echo("init")
     self.data = {}
     self:_setup_data(self.data)
+    
     self._world_name = "minimap_3d_world"
     self._viewport_name = "minimap_3d_viewport"
     self._has_terrain = not not rawget(_G, "TerrainDecoration")
@@ -50,6 +52,8 @@ function Minimap3DView:init(ingame_ui_context)
 	self._render_settings = {
 	    snap_pixel_positions = true
     }
+
+    self.current_location_inside = nil
     
     -- used for map view animations (e.g. zoom animations)
     self._animations = {}
@@ -87,14 +91,26 @@ function Minimap3DView:exit()
     mod:handle_transition("minimap_3d_view_close", true, false, "optional_transition_params_string")
 end
 
+local default_viewport_settings = {
+    near = 100,
+    far = 10000,
+    area = 12,
+    height = 110
+}
+
 Minimap3DView._setup_data = function(self, data)
-    data.global = {
-        debug = false,
-        active = false,
-        projection_type = Camera.PERSPECTIVE,
-        orthographic_data = {
-            size = 100
-        }
+    -- should change when user clicks stuff in the ui
+    data.viewport = default_viewport_settings
+    -- should change when player is in certain map / area with label
+    data.level_settings = {
+        map_name = "",
+        location_ = "location_keep_armoury",
+        location_key = ""
+    }
+    data.location = {
+        name = "",
+        key = "",
+        settings = {}
     }
 end
 
@@ -116,6 +132,14 @@ function Minimap3DView:update(dt)
     if not self.widgets then
         return
     end
+ 
+    self:_update_map_settings()
+    self:_update_labels()
+    self:draw(dt)
+    self:_update_transition_timer(dt)
+end
+
+function Minimap3DView:_update_labels()
     local key = "V2"
     local display_name = "V2"
     if mod._level_key then
@@ -129,8 +153,41 @@ function Minimap3DView:update(dt)
     if self._widgets_by_name.title_text then
         self._widgets_by_name.title_text.content.text = Localize(display_name)
     end
-    self:draw(dt)
-    self:_update_transition_timer(dt)
+    if self._widgets_by_name.poi_panel_text then
+        if self.data.location.name then
+           self._widgets_by_name.poi_panel_text.content.text = self.data.location.name
+        end
+    end
+    if self._widgets_by_name.viewport_setting_tooltip then
+        local player = Managers.player:local_player()
+        local local_player_unit = player.player_unit
+        local player_position = Unit.local_position(local_player_unit, 0)
+        local pos_string = "pos: " .. player_position.x .. ", " .. player_position.y .. ", " .. player_position.z, pos
+        local v = self.data.viewport
+        local setting_string = "h: " .. v.height .. ", a: " .. v.area .. ", n:" .. v.near .. ", f:" .. v.far .. " " .. pos_string
+        
+        self._widgets_by_name.viewport_setting_tooltip.content.tooltip.description = setting_string
+        --self:_show_text("viewport_world_name" .. player.viewport_world_name, pos)
+    end
+
+end
+
+function Minimap3DView:_update_map_settings()
+    local map_viewport = self._viewport_widget
+    if not map_viewport then
+        return
+    end
+
+    local level_specific_settings = mod:_load_level_settings()
+
+    if not level_specific_settings then
+        return
+    end
+    self:_check_player_location()
+
+    if map_viewport then
+        map_viewport.content.settings = self.data.viewport
+    end
 end
 
 function Minimap3DView:post_update(dt, t)
@@ -142,6 +199,181 @@ function Minimap3DView:post_update(dt, t)
     if not self._transition_timer then
         self:_handle_input(dt, t)
     end
+end
+
+-- location checks (so we can apply camera settings based on the position of the player)
+function Minimap3DView:_check_player_location()
+    -- get old data
+    local current_viewport_settings = default_viewport_settings
+    local current_location = self.data.location
+    local level_settings = mod:_load_level_settings()
+
+    -- player position
+	local local_player_unit = Managers.player:local_player().player_unit
+    local position = Unit.local_position(local_player_unit, 0)
+    
+    -- list of child locations for loaded level settings
+    local location_list = level_settings.children
+
+    local hasChildren = location_list
+
+    while (hasChildren) do
+		hasChildren = false
+		for location_name, location in pairs(location_list) do
+			if location_name == "name" or location_name == "settings" then -- ignore the name attribute
+			else
+				local inside = self:_area_intersection(location, position)
+                if inside then
+					-- remember this location
+					current_location = location
+					-- overwrite level settings with more specific ones (declared within this location)
+					for setting_key, setting in pairs(location.settings) do
+                        current_viewport_settings[setting_key] = setting
+                    end
+					-- check if this location has child locations and proceed with them
+					if location.children then
+						hasChildren = true
+						location_list = location.children
+                    end
+				end
+			end
+		end
+    end
+    self.data.viewport = current_viewport_settings
+    self.data.location = current_location
+end
+
+function Minimap3DView:_area_intersection(location, point)
+	if location == nil then
+		return false
+	end
+	if location.name == nil then
+		-- mod:dump(location, "loc", 3)
+	else
+		-- check if player is inside polygon
+		local type = location.check.type
+		if type == "polygon" then
+			local pre = self:_pre_calc(location)
+			return self:_is_point_in_polygon(point, location.check.features, pre)
+		end
+		-- check if players is above given height
+		if type == "above" then
+			return point.z > location.check.height
+		end
+		-- check if players is above given height
+		if type == "below" then
+			return point.z < location.check.height
+		end
+	end
+
+	return false
+end
+
+function Minimap3DView:_pre_calc(location)
+	-- http://alienryderflex.com/polygon/
+	-- only precalc once
+	if location._pre then
+		return location._pre
+	end
+	-- we need points to pre calc
+	if not location.check.type == "polygon" then
+		return
+	end
+	local points = location.check.features
+
+	--bbox for fast forward checks
+	local minX = 10000
+	local maxX = -10000
+	local minY = 10000
+	local maxY = -10000
+
+	-- more advanced preps
+	local corners = #points
+	local polyX = {}
+	local polyY = {}
+	local polyZ = {}
+
+	for i, p in pairs(points) do
+		polyX[i] = p[1]
+		polyY[i] = p[2]
+		polyZ[i] = p[3]
+
+		-- bbox
+		maxX = math.max(maxX, p[1])
+		minX = math.min(minX, p[1])
+		maxY = math.max(maxY, p[2])
+		minY = math.min(minY, p[2])
+	end
+
+	local constant = {}
+	local multiple = {}
+
+	local j = corners
+	for i = 1, corners do
+		if (polyY[j] == polyY[i]) then
+			constant[i] = polyX[i]
+			multiple[i] = 0
+		else
+			constant[i] =
+				polyX[i] - (polyY[i] * polyX[j]) / (polyY[j] - polyY[i]) + (polyY[i] * polyX[i]) / (polyY[j] - polyY[i])
+			multiple[i] = (polyX[j] - polyX[i]) / (polyY[j] - polyY[i])
+			j = i
+		end
+	end
+
+	local pre = {
+		corners = corners,
+		polyX = polyX,
+		polyY = polyY,
+		multiple = multiple,
+		constant = constant,
+		polyX = polyX,
+		polyY = polyY,
+		bbox = {
+			maxX = maxX,
+			minX = minX,
+			maxY = maxY,
+			minY = minY
+		}
+	}
+	location._pre = pre
+	return pre
+end
+function Minimap3DView:_is_point_in_polygon(point, vertices, pre)
+	if not pre.corners then
+		return false
+	end
+	-- http://alienryderflex.com/polygon/
+	local corners = pre.corners
+	local polyX = pre.polyX
+	local polyY = pre.polyY
+	local multiple = pre.multiple
+	local constant = pre.constant
+	local x = point.x
+	local y = point.y
+	local oddNodes = false
+
+	local j = corners
+	for i = 1, corners do
+		local c1 = (polyY[i] < y and polyY[j] >= y)
+		local c2 = (polyY[j] < y and polyY[i] >= y)
+		local betweenY = c1 or c2
+		if (c1 or c2) then
+			local c3 = (y * multiple[i] + constant[i] < x)
+			oddNodes = oddNodes ~= c3
+		end
+		j = i
+	end
+	return oddNodes
+end
+
+function Minimap3DView:_get_pos_above_player()
+	-- get the player
+	local player_unit = Managers.player:local_player().player_unit
+	local player_position = Unit.local_position(player_unit, 0)
+
+	local hitpos_above_player = player_position.z + 6
+	return hitpos_above_player
 end
 
 --[[
@@ -341,7 +573,6 @@ function Minimap3DView:_start_transition_animation(key, animation_name)
 	}
 	local widgets = {}
     local anim_id = self._ui_animator:start_animation(animation_name, widgets, scenegraph_definition, params)
-    mod:echo(anim_id)
 	self._ui_animations[key] = anim_id
 end
 
@@ -468,28 +699,6 @@ mod.toggle_debug_mode = function()
     end
 end
 
-mod.ee = function(dt) 
-
-    if not mod.view then
-        return
-    end
-
-    local debug = mod.view.debug
-    local active = mod.view.active
-
-    if debug then
-        -- mod.view:print_game_location()
-    end
-
-	if not mod._level_settings then
-		mod:_get_level_settings()
-	end
-
-	if not active then
-		return
-	end
-end
-
 mod.on_unload = function(exit_game)
     if not mod.view then
         return
@@ -519,18 +728,23 @@ end
 
 
 -- loads custom settings (such as specific camera preferences) for currently loaded level
-mod._get_level_settings = function(self)
+mod._load_level_settings = function(self)
 	local level_transition_handler = Managers.state.game_mode.level_transition_handler
     local level_key = level_transition_handler:get_current_level_keys()
     if level_key == "inn_level_sonnstill" then
         level_key = "inn_level"
     end
+    if mod._level_key == level_key then
+        return mod._level_settings[level_key]
+    end
+    
+    -- level key has changed so we should apply proper map view settings now
     mod._level_key = level_key
-    -- mod:echo(level_key)
+
     if not mod._level_settings[level_key] then
         mod._level_settings[level_key] = dofile("scripts/mods/minimap2/level_settings")[level_key]
-    end 
-	return mod._level_settings[level_key]
+    end
+    return mod._level_settings[level_key]
 end
 
 mod:command("m_debug", "Shows debug stuff for Minimap mod", mod.print_debug)

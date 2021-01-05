@@ -43,42 +43,28 @@ end
 
 
 -- moves the orto cam above the current player position
-MinimapOrtoCam.sync = function(self, lookAt, far, near, height, dt)
+MinimapOrtoCam.sync = function(self, lookAt, far, near, height, area, dt)
     local world = mod.world
     local viewport = mod.viewport
     local camera = self.camera
     local shadow_cull_camera = self.shadow_cull_camera
-    local height = self.height
-    local far = self.far
-    local near = self.near
-    local area = self.area
 
     -- only move the camera if a player unit exists
     local local_player_unit = Managers.player:local_player().player_unit
 	if not local_player_unit then
 		return
-    end
-	
-	local settings = {
-		height = 200,
-		far = 10000,
-		near = 100
-	}
-	local level = mod:_get_level_settings()
-	if level then
-		settings = level.settings
 	end
-
+	
     -- sync position with player character
 	local player_position = Unit.local_position(local_player_unit, 0)
 	local camera_position_new = Vector3.zero()
 	camera_position_new.x = player_position.x
 	camera_position_new.y = player_position.y
 
-	local cameraHeight = height or settings.height or 200
-	local zfar = far or settings.far or 10000
-    local znear = near or settings.near or 100
-    
+	local cameraHeight = height or self.height
+	local far = far or self.far
+    local near = near or self.near
+	local extent = area or self.area
 	camera_position_new.z = height
 	local dir = {
 		x = 0,
@@ -99,16 +85,16 @@ MinimapOrtoCam.sync = function(self, lookAt, far, near, height, dt)
 	Camera.set_projection_type(camera, Camera.ORTHOGRAPHIC)
 	Camera.set_projection_type(shadow_cull_camera, Camera.ORTHOGRAPHIC)
 
-	local cfar = cameraHeight + zfar
-	local cnear = cameraHeight - znear
+	local cfar = cameraHeight + far
+	local cnear = cameraHeight - near
 	Camera.set_far_range(camera, cfar)
 	Camera.set_near_range(camera, cnear)
 	Camera.set_far_range(shadow_cull_camera, cfar)
 	Camera.set_near_range(shadow_cull_camera, cnear)
 
 	local scroll = math.min(math.max(0.2, 1), 10.0) -- at least 1/5 of setting and max 10x setting
-	local min = area * -1 * scroll
-	local max = area * scroll
+	local min = extent * -1 * scroll
+	local max = extent * scroll
 	Camera.set_orthographic_view(camera, min, max, min, max)
 	Camera.set_orthographic_view(shadow_cull_camera, min, max, min, max)
 

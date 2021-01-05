@@ -290,6 +290,34 @@ local scenegraph_definition = {
 			8
 		}
 	},
+	loadout_power_title = {
+		vertical_alignment = "bottom",
+		parent = "window",
+		horizontal_alignment = "center",
+		size = {
+			300,
+			20
+		},
+		position = {
+			0,
+			window_frame_width + 33,
+			12
+		}
+	},
+	poi_panel_text = {
+		vertical_alignment = "bottom",
+		parent = "loadout_power_title",
+		horizontal_alignment = "center",
+		size = {
+			510,
+			56
+		},
+		position = {
+			0,
+			-32,
+			0
+		}
+	},
 -------- custom stuff added by me
 	-- map = {
 	-- 	vertical_alignment = "top",
@@ -439,6 +467,22 @@ local title_text_style = {
 		2
 	}
 }
+local panel_value_text_style = {
+	font_size = 32,
+	upper_case = true,
+	localize = false,
+	use_shadow = true,
+	word_wrap = true,
+	horizontal_alignment = "center",
+	vertical_alignment = "center",
+	font_type = "hell_shark_header",
+	text_color = Colors.get_color_table_with_alpha("white", 255),
+	offset = {
+		0,
+		0,
+		2
+	}
+}
 local disable_with_gamepad = true
 local widgets_definition = {
 	window = UIWidgets.create_frame("window", scenegraph_definition.window.size, "menu_frame_11"),
@@ -507,6 +551,24 @@ local widgets_definition = {
 		large_window_frame_width + 4,
 		large_window_frame_width
 	}, "essence_panel"),
+	poi_panel_text = UIWidgets.create_simple_text("0", "poi_panel_text", nil, nil, panel_value_text_style),
+	viewport_setting_tooltip = UIWidgets.create_additional_option_tooltip(
+		"poi_panel_text",
+		scenegraph_definition.poi_panel_text.size,
+		{ "additional_option_info", "hero_power_perks" },
+		{ title = "viewport settings", description = "some settings in detail" },
+		400,
+		nil,
+		"top",
+		nil,
+		{
+			0,
+			22,
+			0
+		}
+	)
+
+
 	-- window = UIWidgets.create_frame("window", window_size, "", 1),
 	-- window = UIWidgets.create_frame("window", scenegraph_definition.window.size, "menu_frame_06"),
 	-- item_title = UIWidgets.create_title_text("n/a", "item_title"),
@@ -550,7 +612,7 @@ local map_viewport = {
 		map_viewport = {
 			scenegraph_id = "viewport",
 			viewport_name = "minimap_viewport",
-			layer = 999,
+			layer = 1,
 			viewport_type = "overlay",
 			enable_sub_gui = true,
 			fov = 120,
@@ -567,7 +629,12 @@ local map_viewport = {
 		}
 	},
 	content = {
-		debug_text = "n/a",
+		settings = {
+			near = 100,
+			far = 10000,
+			height = 200,
+			area = 12
+		},
 	}
 }
 local animation_definitions = {
