@@ -5,201 +5,230 @@ mod:dofile("scripts/mods/minimap2/OrtoCam")
 local VIEWPORT_NAME = "minimap_viewport"
 local _original_layer = 0
 
+
 -- hook that uses existing code from scripts/util/script_world.lua and adds special case for minimap_viewport
--- mod:hook(
--- 	ScriptWorld,
--- 	"render",
--- 	function(func, world)
--- 		local shading_env = World.get_data(world, "shading_environment")
+mod:hook(
+	CameraManager,
+	"add_viewport",
+	function (func, self, viewport_name, position, rotation)
+		mod:echo("add viewport")
+		mod:echo(viewport_name)
+		self._scatter_system_observers[viewport_name] = ScatterSystem.make_observer(self._scatter_system, position, rotation)
+		self._node_trees[viewport_name] = {}
+		self._variables[viewport_name] = {}
+		self._camera_nodes[viewport_name] = {}
+		self._shadow_lights_viewport = viewport_name
+		local viewport = ScriptWorld.viewport(self._world, viewport_name)
+		self._environment_blenders[viewport_name] = EnvironmentBlender:new(self._world, viewport)
+	end
+)
 
--- 		if not shading_env then
--- 			return
--- 		end
+local minimap_shading_callback = function (world, shading_env, viewport)
+	-- mod:echo("shading callback")
+	local shading_env_settings = mod.view.data.shading_env_settings
+	for setting_key, setting_scalar in pairs(mod.view.data.shading_env_settings) do
+		-- scalars[setting_key] = ShadingEnvironment.scalar(shading_env, setting_key)
+		ShadingEnvironment.set_scalar(shading_env, setting_key, setting_scalar)
+	end
+
+	local colors = nil
+	local local_player = Managers.player:local_player()
+
+	if local_player then
+		local peer_id = local_player:network_id()
+		local local_player_id = local_player:local_player_id()
+		local party = Managers.party:get_party_from_player_id(peer_id, local_player_id)
+		local side = Managers.state.side.side_by_party[party]
+
+		if side then
+			local side_name = side:name()
+
+			if side_name == "heroes" then
+				colors = OutlineSettings.colors
+			elseif side_name == "dark_pact" then
+				colors = OutlineSettingsVS.colors
+			end
+		end
+	end
+
+	if colors then
+		for name, settings in pairs(colors) do
+			local c = settings.color
+			local color = Vector3(c[2] / 255, c[3] / 255, c[4] / 255)
+			local multiplier = settings.outline_multiplier
+
+			if settings.pulsate then
+				multiplier = settings.outline_multiplier * 0.5 + math.sin(Application.time_since_launch() * settings.pulse_multiplier) * settings.outline_multiplier * 0.5
+			end
+
+			ShadingEnvironment.set_vector3(shading_env, settings.variable, color)
+			ShadingEnvironment.set_scalar(shading_env, settings.outline_multiplier_variable, multiplier)
+		end
+	end
+
+	-- if self._frame == 0 then
+	-- 	self._frame = 1
+
+	ShadingEnvironment.set_scalar(shading_env, "reset_luminance_adaption", 0)
+	-- elseif self._frame == 1 then
+	-- 	self._frame = 2
+
+	-- 	ShadingEnvironment.set_scalar(shading_env, "reset_luminance_adaption", 0)
+	-- end
+
+	-- for interaction_type, interaction_settings in pairs(WorldInteractionSettings) do
+	-- 	ShadingEnvironment.set_scalar(shading_env, interaction_settings.shading_env_variable, math.clamp(interaction_settings.window_size, 1, 50))
+	-- end
+
+	-- if self._vignette_falloff_opacity and self._vignette_color then
+	-- 	mod:echo("vignette")
+	-- 	local env_vignette_color = ShadingEnvironment.vector3(shading_env, "vignette_color")
+	-- 	local env_vignette_scale_falloff_opacity = ShadingEnvironment.vector3(shading_env, "vignette_scale_falloff_opacity")
+	-- 	local vignette_t = self._vignette_t
+	-- 	local vignette_s_f_o = self._vignette_falloff_opacity:unbox()
+	-- 	local max_scale_falloff_opacity = Vector3(math.min(vignette_s_f_o.x, env_vignette_scale_falloff_opacity.x), math.max(vignette_s_f_o.y, env_vignette_scale_falloff_opacity.y), math.max(vignette_s_f_o.z, env_vignette_scale_falloff_opacity.z))
+	-- 	local new_scale_falloff_opacity = Vector3.smoothstep(vignette_t, env_vignette_scale_falloff_opacity, max_scale_falloff_opacity)
+
+	-- 	ShadingEnvironment.set_vector3(shading_env, "vignette_color", self._vignette_color:unbox())
+	-- 	ShadingEnvironment.set_vector3(shading_env, "vignette_scale_falloff_opacity", new_scale_falloff_opacity)
+	-- end
+
+	local gamma = Application.user_setting("gamma") or 1
+	ShadingEnvironment.set_scalar(shading_env, "exposure", ShadingEnvironment.scalar(shading_env, "exposure") * gamma)
+	-- if Application.user_setting("render_settings", "particles_receive_shadows") then
+	-- 	local last_slice_idx = ShadingEnvironment.array_elements(shading_env, "sun_shadow_slice_depth_ranges") - 1
+	-- 	local last_slice_depths = ShadingEnvironment.array_vector2(shading_env, "sun_shadow_slice_depth_ranges", last_slice_idx)
+	-- 	last_slice_depths.x = 0
+
+	-- 	ShadingEnvironment.set_array_vector2(shading_env, "sun_shadow_slice_depth_ranges", last_slice_idx, last_slice_depths)
+	-- end
+
+	-- self.mood_handler:apply_environment_variables(shading_env)
+
+	-- local blur_value = World.get_data(world, "fullscreen_blur") or 0
+
+	-- if blur_value > 0 then
+	-- 	ShadingEnvironment.set_scalar(shading_env, "fullscreen_blur_enabled", 1)
+	-- 	ShadingEnvironment.set_scalar(shading_env, "fullscreen_blur_amount", math.clamp(blur_value, 0, 1))
+	-- else
+	-- 	World.set_data(world, "fullscreen_blur", nil)
+	-- 	ShadingEnvironment.set_scalar(shading_env, "fullscreen_blur_enabled", 0)
+	-- end
+
+	-- local greyscale_value = World.get_data(world, "greyscale") or 0
+
+	-- if greyscale_value > 0 then
+		ShadingEnvironment.set_scalar(shading_env, "grey_scale_enabled", 1)
+		ShadingEnvironment.set_scalar(shading_env, "grey_scale_amount", 0.4)
+		ShadingEnvironment.set_vector3(shading_env, "grey_scale_weights", Vector3(0.33, 0.33, 0.33))
+	-- else
+	-- 	World.set_data(world, "greyscale", nil)
+	-- 	ShadingEnvironment.set_scalar(shading_env, "grey_scale_enabled", 0)
+	-- end
+end
+local frame = 0
+mod:hook(
+	ScriptWorld,
+	"render",
+	function(func, world)
+		local o_s = World.get_data(world, "shading_environment")
+		if not o_s then
+			return
+		end
+
+		-- reference to original shading_environment which optionally will get overwritten with map_viewport
+		local shading_env = o_s
+		local name = World.get_data(world, "name")
+
 	
--- 		local global_free_flight_viewport = World.get_data(world, "global_free_flight_viewport")
+		local global_free_flight_viewport = World.get_data(world, "global_free_flight_viewport")
 	
--- 		if global_free_flight_viewport then
--- 			ShadingEnvironment.blend(shading_env, World.get_data(world, "shading_settings"))
--- 			ShadingEnvironment.apply(shading_env)
+		if global_free_flight_viewport then
+			ShadingEnvironment.blend(shading_env, World.get_data(world, "shading_settings"))
+			ShadingEnvironment.apply(shading_env)
 	
--- 			if World.has_data(world, "shading_callback") and not Viewport.get_data(global_free_flight_viewport, "avoid_shading_callback") then
--- 				local callback = World.get_data(world, "shading_callback")
+			if World.has_data(world, "shading_callback") and not Viewport.get_data(global_free_flight_viewport, "avoid_shading_callback") then
+				local callback = World.get_data(world, "shading_callback")
 	
--- 				callback(world, shading_env, World.get_data(world, "render_queue")[1])
--- 			end
+				callback(world, shading_env, World.get_data(world, "render_queue")[1])
+			end
 	
--- 			local camera = ScriptViewport.camera(global_free_flight_viewport)
+			local camera = ScriptViewport.camera(global_free_flight_viewport)
 	
--- 			Application.render_world(world, camera, global_free_flight_viewport, shading_env)
--- 		else
--- 			local render_queue = World.get_data(world, "render_queue")
+			Application.render_world(world, camera, global_free_flight_viewport, shading_env)
+		else
+			local render_queue = World.get_data(world, "render_queue")
+			local world_name = World.get_data(world, "name")
 	
--- 			if table.is_empty(render_queue) then
--- 				Application.update_render_world(world)
+			local scalars = {}
+
+			if table.is_empty(render_queue) then
+				Application.update_render_world(world)	
+				return
+			end
+
+			for key, viewport in ipairs(render_queue) do
+				local viewport_name = Viewport.get_data(viewport, "name")	
+				
+				local map_shading_env = World.get_data(world, "minimap_shading_environment")
+				if viewport_name == "minimap_viewport" and map_shading_env then
+					shading_env = map_shading_env
+				end
+
+				if not World.get_data(world, "avoid_blend") then
+					local settings = World.get_data(world, "shading_settings")
+					ShadingEnvironment.blend(shading_env, World.get_data(world, "shading_settings"), World.get_data(world, "override_shading_settings"))
+				end
 	
--- 				return
--- 			end
+				if World.has_data(world, "shading_callback") and not Viewport.get_data(viewport, "avoid_shading_callback") then
+					if viewport_name == "minimap_viewport" then
+						minimap_shading_callback(world, shading_env, viewport)
+					else
+						local callback = World.get_data(world, "shading_callback")
+						callback(world, shading_env, viewport)
+					end
+					if callback then
+					end
+				end
 	
--- 			for _, viewport in ipairs(render_queue) do
--- 				if not World.get_data(world, "avoid_blend") then
--- 					ShadingEnvironment.blend(shading_env, World.get_data(world, "shading_settings"), World.get_data(world, "override_shading_settings"))
--- 				end
-	
--- 				if World.has_data(world, "shading_callback") and not Viewport.get_data(viewport, "avoid_shading_callback") then
--- 					local callback = World.get_data(world, "shading_callback")
-	
--- 					callback(world, shading_env, viewport)
--- 				end
-	
--- 				if not World.get_data(world, "avoid_blend") then
--- 					ShadingEnvironment.apply(shading_env)
--- 				end
-	
--- 				local camera = ScriptViewport.camera(viewport)
-	
--- 				Application.render_world(world, camera, viewport, shading_env)
--- 			end
--- 		end
--- 	end
--- )
--- local minimap_shading_callback = function (self, world, shading_env, viewport)
--- 	if self._world == world then
--- 		mod:echo("shading callback")
--- 		local shading_env_settings = self._shading_environment[viewport] or self._shading_environment[Viewport.get_data(viewport, "overridden_viewport")] or EMPTY_TABLE
+				if not World.get_data(world, "avoid_blend") then
+					ShadingEnvironment.apply(shading_env)
+				end
 
--- 		if shading_env_settings.dof_enabled then
--- 			local dof_enabled = shading_env_settings.dof_enabled
+				local camera = ScriptViewport.camera(viewport)
+				Application.update_render_world(world)
 
--- 			ShadingEnvironment.set_scalar(shading_env, "dof_enabled", dof_enabled)
-
--- 			if dof_enabled > 0 then
--- 				local focal_distance = shading_env_settings.focal_distance
--- 				local focal_region = shading_env_settings.focal_region
--- 				local focal_padding = shading_env_settings.focal_padding
--- 				local focal_scale = shading_env_settings.focal_scale
-
--- 				ShadingEnvironment.set_scalar(shading_env, "dof_focal_distance", focal_distance)
--- 				ShadingEnvironment.set_scalar(shading_env, "dof_focal_region", focal_region)
--- 				ShadingEnvironment.set_scalar(shading_env, "dof_focal_region_start", focal_padding)
--- 				ShadingEnvironment.set_scalar(shading_env, "dof_focal_region_end", focal_padding)
--- 				ShadingEnvironment.set_scalar(shading_env, "dof_focal_near_scale", focal_scale)
--- 				ShadingEnvironment.set_scalar(shading_env, "dof_focal_far_scale", focal_scale)
--- 			end
--- 		end
-
--- 		local colors = nil
--- 		local local_player = Managers.player:local_player()
-
--- 		if local_player then
--- 			local peer_id = local_player:network_id()
--- 			local local_player_id = local_player:local_player_id()
--- 			local party = Managers.party:get_party_from_player_id(peer_id, local_player_id)
--- 			local side = Managers.state.side.side_by_party[party]
-
--- 			if side then
--- 				local side_name = side:name()
-
--- 				if side_name == "heroes" then
--- 					colors = OutlineSettings.colors
--- 				elseif side_name == "dark_pact" then
--- 					colors = OutlineSettingsVS.colors
--- 				end
--- 			end
--- 		end
-
--- 		if colors then
--- 			for name, settings in pairs(colors) do
--- 				local c = settings.color
--- 				local color = Vector3(c[2] / 255, c[3] / 255, c[4] / 255)
--- 				local multiplier = settings.outline_multiplier
-
--- 				if settings.pulsate then
--- 					multiplier = settings.outline_multiplier * 0.5 + math.sin(Application.time_since_launch() * settings.pulse_multiplier) * settings.outline_multiplier * 0.5
--- 				end
-
--- 				ShadingEnvironment.set_vector3(shading_env, settings.variable, color)
--- 				ShadingEnvironment.set_scalar(shading_env, settings.outline_multiplier_variable, multiplier)
--- 			end
--- 		end
-
--- 		if self._frame == 0 then
--- 			self._frame = 1
-
--- 			ShadingEnvironment.set_scalar(shading_env, "reset_luminance_adaption", 1)
--- 		elseif self._frame == 1 then
--- 			self._frame = 2
-
--- 			ShadingEnvironment.set_scalar(shading_env, "reset_luminance_adaption", 0)
--- 		end
-
--- 		for interaction_type, interaction_settings in pairs(WorldInteractionSettings) do
--- 			ShadingEnvironment.set_scalar(shading_env, interaction_settings.shading_env_variable, math.clamp(interaction_settings.window_size, 1, 50))
--- 		end
-
--- 		if self._vignette_falloff_opacity and self._vignette_color then
--- 			mod:echo("vignette")
--- 			local env_vignette_color = ShadingEnvironment.vector3(shading_env, "vignette_color")
--- 			local env_vignette_scale_falloff_opacity = ShadingEnvironment.vector3(shading_env, "vignette_scale_falloff_opacity")
--- 			local vignette_t = self._vignette_t
--- 			local vignette_s_f_o = self._vignette_falloff_opacity:unbox()
--- 			local max_scale_falloff_opacity = Vector3(math.min(vignette_s_f_o.x, env_vignette_scale_falloff_opacity.x), math.max(vignette_s_f_o.y, env_vignette_scale_falloff_opacity.y), math.max(vignette_s_f_o.z, env_vignette_scale_falloff_opacity.z))
--- 			local new_scale_falloff_opacity = Vector3.smoothstep(vignette_t, env_vignette_scale_falloff_opacity, max_scale_falloff_opacity)
-
--- 			ShadingEnvironment.set_vector3(shading_env, "vignette_color", self._vignette_color:unbox())
--- 			ShadingEnvironment.set_vector3(shading_env, "vignette_scale_falloff_opacity", new_scale_falloff_opacity)
--- 		end
-
--- 		local gamma = Application.user_setting("gamma") or 1
-
--- 		ShadingEnvironment.set_scalar(shading_env, "exposure", ShadingEnvironment.scalar(shading_env, "exposure") * gamma)
-
--- 		if Application.user_setting("render_settings", "particles_receive_shadows") then
--- 			local last_slice_idx = ShadingEnvironment.array_elements(shading_env, "sun_shadow_slice_depth_ranges") - 1
--- 			local last_slice_depths = ShadingEnvironment.array_vector2(shading_env, "sun_shadow_slice_depth_ranges", last_slice_idx)
--- 			last_slice_depths.x = 0
-
--- 			ShadingEnvironment.set_array_vector2(shading_env, "sun_shadow_slice_depth_ranges", last_slice_idx, last_slice_depths)
--- 		end
-
--- 		self.mood_handler:apply_environment_variables(shading_env)
-
--- 		local blur_value = World.get_data(world, "fullscreen_blur") or 0
-
--- 		if blur_value > 0 then
--- 			ShadingEnvironment.set_scalar(shading_env, "fullscreen_blur_enabled", 1)
--- 			ShadingEnvironment.set_scalar(shading_env, "fullscreen_blur_amount", math.clamp(blur_value, 0, 1))
--- 		else
--- 			World.set_data(world, "fullscreen_blur", nil)
--- 			ShadingEnvironment.set_scalar(shading_env, "fullscreen_blur_enabled", 0)
--- 		end
-
--- 		local greyscale_value = World.get_data(world, "greyscale") or 0
-
--- 		if greyscale_value > 0 then
--- 			ShadingEnvironment.set_scalar(shading_env, "grey_scale_enabled", 1)
--- 			ShadingEnvironment.set_scalar(shading_env, "grey_scale_amount", math.clamp(greyscale_value, 0, 1))
--- 			ShadingEnvironment.set_vector3(shading_env, "grey_scale_weights", Vector3(0.33, 0.33, 0.33))
--- 		else
--- 			World.set_data(world, "greyscale", nil)
--- 			ShadingEnvironment.set_scalar(shading_env, "grey_scale_enabled", 0)
--- 		end
--- 	end
--- end
+				if viewport_name == "minimap_viewport" then
+					minimap_shading_callback(world, shading_env, viewport)
+					ShadingEnvironment.apply(shading_env)
+					Application.render_world(world, camera, viewport, shading_env)
+					World.set_data(world, "shading_environment", o_s)
+				else
+					Application.render_world(world, camera, viewport, shading_env)
+				end
+			end
+		end
+	end
+)
 
 mod:hook(ScriptWorld, "create_shading_environment", function (func, world, shading_environment_name, shading_callback, mood_setting)
+	local name = World.get_data(world, "name")
 	local shading_env = World.create_shading_environment(world, shading_environment_name)
-
-	mod.shading_env = shading_env
-	-- mod:dump(shading_env, "shading_env", 3)
-	mod.shading_callback = shading_callback
-	mod.mood_setting = mood_setting
-
+	
 	World.set_data(world, "shading_environment", shading_env)
+	World.set_data(world, "something", "pah")
 	World.set_data(world, "shading_callback", shading_callback)
 	World.set_data(world, "shading_settings", {
 		mood_setting,
 		1
 	})
+
+	if name == "level_world" then
+		local map_shading_env = World.create_shading_environment(world, shading_environment_name)
+		mod.shading_env_name = shading_environment_name
+		mod.mood_setting = mood_setting
+		World.set_data(world, "minimap_shading_environment", map_shading_env)
+	end
 
 	return shading_env
 end
@@ -217,7 +246,6 @@ UIPasses.map_viewport = {
 		local viewports = World.get_data(world, "viewports")
 		local player = Managers.player:local_player()
 		local element_layer = style.layer or 999
--- 		mod:echo(element_layer)
 		local viewport = mod.viewport or  viewports[viewport_name]
 		if not viewport then
 			viewport = ScriptWorld.create_viewport(world, viewport_name, "default", element_layer)
@@ -329,24 +357,6 @@ UIPasses.map_viewport = {
 		pass_data.viewport_rect_pos_y = position.y
 		pass_data.viewport_rect_size_x = size.x
 		pass_data.viewport_rect_size_y = size.y
-
-		-- shading env adjustements
-		local shading_env = World.get_data(pass_data.world, "shading_environment")
-		ShadingEnvironment.set_scalar(shading_env, "fog_enabled", 0)
-		ShadingEnvironment.set_scalar(shading_env, "dof_enabled", 0)
-		ShadingEnvironment.set_scalar(shading_env, "motion_bur_enabled", 0)
-		ShadingEnvironment.set_scalar(shading_env, "outline_enabled", 0)
-		ShadingEnvironment.set_scalar(shading_env, "sun_shadows_enabled", 0)
-		ShadingEnvironment.set_scalar(shading_env, "ssm_enabled", 0)
-		ShadingEnvironment.set_scalar(shading_env, "exposure", 0.04)
-		ShadingEnvironment.set_scalar(shading_env, "exposure_auto_enabled", 0)
-		ShadingEnvironment.set_scalar(shading_env, "bloom_enabled", 0)
-		ShadingEnvironment.set_scalar(shading_env, "ssm_constant_update_enabled", 0)
-		ShadingEnvironment.set_scalar(shading_env, "reset_luminance_adaption", 0)
-
-		local exp = ShadingEnvironment.scalar(shading_env, "exposure")
-		-- mod:echo(exp)
-		ShadingEnvironment.apply(shading_env)
 	end,
 	raycast_at_screen_position = function (pass_data, screen_position, result_type, range, collision_filter)
 		mod:echo("should re implement raycasting here")

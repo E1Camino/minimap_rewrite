@@ -1,5 +1,9 @@
 local mod = get_mod("minimap2")
 
+
+local pl = require'pl.import_into'()
+fassert(pl, "Minimap must be lower than Penlight Lua Libraries in your launcher's load order.")
+
 mod:dofile("scripts/mods/minimap2/MiniMapUIPass")
 
 mod.active = false
@@ -95,12 +99,28 @@ local default_viewport_settings = {
     near = 100,
     far = 10000,
     area = 12,
-    height = 110
+    height = 110,
 }
 
 Minimap3DView._setup_data = function(self, data)
     -- should change when user clicks stuff in the ui
     data.viewport = default_viewport_settings
+    data.shading_env_settings = {
+        fog_enabled = 0,
+        dof_enabled = 0,
+        motion_bur_enabled = 0,
+        outline_enabled = 0,
+        sun_shadows_enabled = 0,
+        ssm_enabled = 0,
+        exposure = 0.14,
+        exposure_auto_enabled = 0,
+        bloom_enabled = 0,
+        ssm_constant_update_enabled = 0,
+        reset_luminance_adaption = 0,
+        eye_adaption_enabled = 0,
+        grey_scale_amount = 0.3,
+        grey_scale_enabled = 1
+    }
     -- should change when player is in certain map / area with label
     data.level_settings = {
         map_name = "",
@@ -165,9 +185,13 @@ function Minimap3DView:_update_labels()
         local pos_string = "pos: " .. player_position.x .. ", " .. player_position.y .. ", " .. player_position.z, pos
         local v = self.data.viewport
         local setting_string = "h: " .. v.height .. ", a: " .. v.area .. ", n:" .. v.near .. ", f:" .. v.far .. " " .. pos_string
-        
+        if mod.shading_env_name then
+            setting_string = setting_string .. " " .. mod.shading_env_name
+        end
+        if mod.mood_setting then
+            setting_string = setting_string .. " " .. mod.mood_setting
+        end
         self._widgets_by_name.viewport_setting_tooltip.content.tooltip.description = setting_string
-        --self:_show_text("viewport_world_name" .. player.viewport_world_name, pos)
     end
 
 end
@@ -382,7 +406,7 @@ end
   also be passed to a transition function.
 --]]
 function Minimap3DView:on_enter(transition_params)
-    mod:echo("on_enter")
+    -- mod:echo("on_enter")
     if transition_params.wwise_world then
         self._wwise_world = transition_params.wwise_world
     end
@@ -410,7 +434,7 @@ end
   this view becoming inactive.
 --]]
 function Minimap3DView:on_exit(transition_params)
-    mod:echo("on_exit")
+    -- mod:echo("on_exit")
     self:destroy_ui_elements()
     WwiseWorld.trigger_event(self._wwise_world_sound, "Play_hud_button_close")
 end
@@ -421,7 +445,7 @@ end
   the end of the level and in some exotic situations.
 --]]
 function Minimap3DView:destroy()
-    mod:echo("destroy")
+    -- mod:echo("destroy")
 end
 
 --[[
@@ -432,7 +456,7 @@ function Minimap3DView:input_service()
 end
 
 function Minimap3DView:create_ui_elements()
-    mod:echo("create_ui_elements")
+    -- mod:echo("create_ui_elements")
     self.scenegraph = UISceneGraph.init_scenegraph(DEFINITIONS.scenegraph_definition)
 
     if self._viewport_widget then
@@ -460,7 +484,7 @@ function Minimap3DView:create_ui_elements()
 end
 
 function Minimap3DView:destroy_ui_elements()
-    mod:echo("destroy_ui_elements")
+    -- mod:echo("destroy_ui_elements")
 	rawset(_G, "minimap_ui", nil)
     GarbageLeakDetector.register_object(self, "minimap_ui")
 
