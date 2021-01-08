@@ -112,15 +112,14 @@ Minimap3DView._setup_data = function(self, data)
         outline_enabled = 0,
         sun_shadows_enabled = 0,
         ssm_enabled = 0,
-        exposure = 0.14,
+        exposure = 0.04,
         exposure_auto_enabled = 0,
         bloom_enabled = 0,
         ssm_constant_update_enabled = 0,
         reset_luminance_adaption = 0,
-        eye_adaption_enabled = 0,
-        grey_scale_amount = 0.3,
-        grey_scale_enabled = 1
+        eye_adaption_enabled = 0
     }
+    data.use_custom_shading = false
     -- should change when player is in certain map / area with label
     data.level_settings = {
         map_name = "",
@@ -191,7 +190,11 @@ function Minimap3DView:_update_labels()
         if mod.mood_setting then
             setting_string = setting_string .. " " .. mod.mood_setting
         end
-        self._widgets_by_name.viewport_setting_tooltip.content.tooltip.description = setting_string
+        if self._widgets_by_name.viewport_setting_tooltip.content.tooltip then    
+            self._widgets_by_name.viewport_setting_tooltip.content.tooltip.description = setting_string
+        else 
+            self._widgets_by_name.viewport_setting_tooltip.content.tooltip_text = setting_string
+        end
     end
 
 end
@@ -420,7 +423,7 @@ function Minimap3DView:on_enter(transition_params)
 		mod.world = world
         self:create_ui_elements(mod.world, "minimap", "default", 2)
 	end
-    WwiseWorld.trigger_event(self._wwise_world_sound, "Play_hud_trophy_open")
+    self:_play_sound("Play_hud_trophy_open")
     if not mod.active then
         --self:_start_transition_animation("on_enter", "on_enter")
     end
@@ -436,7 +439,7 @@ end
 function Minimap3DView:on_exit(transition_params)
     -- mod:echo("on_exit")
     self:destroy_ui_elements()
-    WwiseWorld.trigger_event(self._wwise_world_sound, "Play_hud_button_close")
+    self:_play_sound("Play_hud_button_close")
 end
   
   
@@ -480,7 +483,38 @@ function Minimap3DView:create_ui_elements()
 
     self._ui_animator = UIAnimator:new(self._ui_scenegraph, DEFINITIONS.animation_definitions)
 
+    -- slider widget
+    -- self:build_slider_widget()
+
     UIRenderer.clear_scenegraph_queue(self.ui_renderer)
+	--return widget
+
+
+    local gamepad_active = Managers.input:is_device_active("gamepad")
+    local widget_name = "map_checkbox"
+    local widget = widgets_by_name[widget_name]
+    if widget then
+        local content = widget.content
+        local offset = widget.offset
+        local style = widget.style
+        local hotspot_content = content.button_hotspot
+        local hotspot_style = style.button_hotspot
+        local hotspot_size = hotspot_style.size
+        local text_style = style.text
+        local text_offset = text_style.offset
+        local text_width_offset = text_offset[1]
+        local ui_renderer = self.ui_renderer
+        local text_width = UIUtils.get_text_width(ui_renderer, text_style, hotspot_content.text)
+        local total_width = text_width_offset + text_width
+        offset[1] = -total_width / 2
+        offset[2] = (gamepad_active and 40) or 0
+        local tooltip_style = style.additional_option_info
+        local tooltip_width = tooltip_style.max_width
+        local tooltip_offset = tooltip_style.offset
+        tooltip_offset[1] = -(tooltip_width / 2 - total_width / 2)
+        hotspot_size[1] = total_width
+
+    end
 end
 
 function Minimap3DView:destroy_ui_elements()
@@ -549,10 +583,14 @@ function Minimap3DView:_update_animations(dt)
     end
 --    mod:echo("exit button")
 	local exit_button = widgets_by_name.exit_button
-  	-- local confirm_button = widgets_by_name.confirm_button
+	local map_checkbox = widgets_by_name.map_checkbox
 
-	UIWidgetUtils.animate_default_button(exit_button, dt)
-	--UIWidgetUtils.animate_default_button(confirm_button, dt)
+    if exit_button then
+        UIWidgetUtils.animate_default_button(exit_button, dt)
+    end
+    if map_checkbox then
+        UIWidgetUtils.animate_default_button(map_checkbox, dt)
+    end
 end
 
 function Minimap3DView:_handle_input(dt, t)
@@ -570,12 +608,27 @@ function Minimap3DView:_handle_input(dt, t)
 	UIWidgetUtils.animate_default_button(exit_button, dt)
 
     if self:_is_button_hover_enter(exit_button) then
-        WwiseWorld.trigger_event(self._wwise_world_sound, "play_gui_equipment_button_hover")
+        self:_play_sound("play_gui_equipment_button_hover")
 	end
 
 	if input_pressed or self:_is_button_pressed(exit_button) then
 		self:exit()
-	end
+    end
+    
+
+    local map_checkbox = widgets_by_name.map_checkbox
+    if map_checkbox then
+        if self:_is_button_released(map_checkbox) or lock_party_size_pressed then
+            local content = map_checkbox.content
+            content.button_hotspot.is_selected = not content.button_hotspot.is_selected
+            self.data.use_custom_shading = content.button_hotspot.is_selected
+            self:_play_sound("play_gui_lobby_button_play")
+        end
+    end
+end
+
+function Minimap3DView:_play_sound(event)
+	WwiseWorld.trigger_event(self._wwise_world_sound, event)
 end
 
 function Minimap3DView:_update_transition_timer(dt)
@@ -609,6 +662,23 @@ function Minimap3DView:_is_button_pressed(widget)
 		return true
 	end
 end
+function Minimap3DView:_is_button_released(widget)
+    local content = widget.content
+    local hotspot = content.button_hotspot
+
+    if hotspot.on_release then
+        hotspot.on_release = false
+
+        return true
+    end
+end
+
+function Minimap3DView:_is_button_selected(widget)
+	local content = widget.content
+	local hotspot = content.button_hotspot
+
+	return hotspot.is_selected
+end
 
 function Minimap3DView:_is_button_hover_enter(widget)
 	local content = widget.content
@@ -616,33 +686,6 @@ function Minimap3DView:_is_button_hover_enter(widget)
 
 	return hotspot.on_hover_enter
 end
-
-
-
-
-
--- function Minimap3DView:print_game_location()
---     local ingame_ui = self.ingame_ui
-
---     -- on screen text
---     local player = Managers.player:local_player()
---     local local_player_unit = player.player_unit
---     local player_position = Unit.local_position(local_player_unit, 0)
---     local w, h = Application.resolution()
---     local pos = Vector3(20, h - 25, 5)
---     local pos_string = "pos: " .. player_position.x .. ", " .. player_position.y .. ", " .. player_position.z, pos
---     if self.widgets and self.widgets.debug_text then
---         mod:echo(pos_string)
---         self.widgets.debug_text.content.text = pos_string
---     end
---     --self:_show_text("viewport_world_name" .. player.viewport_world_name, pos)
--- end
-
--- function Minimap3DView:_show_text(text, pos)
--- 	Gui.text(self.ui_top_renderer.gui, text, "materials/fonts/gw_head", 20, "gw_head", pos, Color(0, 255, 0))
--- 	return Vector3(pos[1], pos[2] - 30, pos[3])
--- end
-  
 -- Your mod code goes here.
 -- https://vmf-docs.verminti.de
 local view_data = {

@@ -4,7 +4,6 @@ local small_window_frame = window_default_settings.frame
 local small_window_size = window_default_settings.size
 local small_window_spacing = window_default_settings.spacing
 local large_window_frame = window_default_settings.large_window_frame
--- local large_window_frame_width = UIFrameSettings[large_window_frame].texture_sizes.vertical[1]
 local large_window_frame_width = 22
 local inner_window_size = {
 	small_window_size[1] * 3 + small_window_spacing * 2 + large_window_frame_width * 2,
@@ -15,8 +14,20 @@ local window_size = {
 	inner_window_size[2]
 }
 local window_frame_width = large_window_frame_width
+local INPUT_FIELD_WIDTH = 400
+
+local SLIDER_SIZE = {
+	INPUT_FIELD_WIDTH,
+	10
+}
+local SLIDER_WIDGET_SIZE = {
+	300,
+	30
+}
+
+
 local scenegraph_definition = {
-	--- start_game_state_settings_overview_definitions.lua :P
+	--- start_game_state_settings_overview_definitions.lua
 	root = {
 		is_root = true,
 		size = {
@@ -318,21 +329,38 @@ local scenegraph_definition = {
 			0
 		}
 	},
+-------- start_game_window_weave_info_definitions
+	settings_panel = {
+		vertical_alignment = "bottom",
+		parent = "inner_window",
+		horizontal_alignment = "center",
+		size = {
+			400,
+			72
+		},
+		position = {
+			0,
+			18,
+			20
+		}
+	},
+	map_checkbox = {
+		vertical_alignment = "top",
+		parent = "settings_panel",
+		horizontal_alignment = "left",
+		size = {
+			400,
+			40
+		},
+		position = {
+			340,
+			-24,
+			0
+		}
+	},
+
 -------- custom stuff added by me
-	-- map = {
-	-- 	vertical_alignment = "top",
-	-- 	parent = "window",
-	-- 	horizontal_alignment = "center",
-	-- 	size = {
-	-- 		window_size[1],
-	-- 		window_size[2]
-	-- 	},
-	-- 	position = {
-	-- 		0,
-	-- 		0,
-	-- 		5
-	-- 	},
-	-- },
+
 
 	info_video_edge_left = {
 		vertical_alignment = "top",
@@ -483,24 +511,274 @@ local panel_value_text_style = {
 		2
 	}
 }
+local function create_checkbox_button(scenegraph_id, size, text, font_size, tooltip_info, disable_with_gamepad)
+	local widget = {
+		element = {}
+	}
+	local passes = {}
+	local content = {}
+	local style = {}
+	local hotspot_name = "button_hotspot"
+	passes[#passes + 1] = {
+		pass_type = "hotspot",
+		content_id = hotspot_name,
+		style_id = hotspot_name
+	}
+	style[hotspot_name] = {
+		size = size,
+		offset = {
+			0,
+			0,
+			0
+		}
+	}
+	content.disable_with_gamepad = disable_with_gamepad
+	content[hotspot_name] = {}
+	local hotspot_content = content[hotspot_name]
+
+	if tooltip_info then
+		local tooltip_name = "additional_option_info"
+		passes[#passes + 1] = {
+			pass_type = "additional_option_tooltip",
+			content_id = hotspot_name,
+			style_id = tooltip_name,
+			additional_option_id = tooltip_name,
+			content_check_function = function (content)
+				return content.is_hover
+			end
+		}
+		style[tooltip_name] = {
+			vertical_alignment = "top",
+			max_width = 400,
+			horizontal_alignment = "center",
+			offset = {
+				0,
+				0,
+				0
+			}
+		}
+		hotspot_content[tooltip_name] = tooltip_info
+	end
+
+	local text_name = "text"
+	passes[#passes + 1] = {
+		pass_type = "text",
+		content_id = hotspot_name,
+		text_id = text_name,
+		style_id = text_name,
+		content_check_function = function (content)
+			return not content.disable_button
+		end
+	}
+	local text_offset_x = 40
+	style[text_name] = {
+		word_wrap = true,
+		font_size = 22,
+		horizontal_alignment = "left",
+		vertical_alignment = "center",
+		font_type = "hell_shark",
+		text_color = Colors.get_color_table_with_alpha("font_button_normal", 255),
+		default_text_color = Colors.get_color_table_with_alpha("font_button_normal", 255),
+		select_text_color = Colors.get_color_table_with_alpha("white", 255),
+		offset = {
+			text_offset_x,
+			3,
+			4
+		},
+		size = size
+	}
+	hotspot_content[text_name] = text
+	local text_disabled_name = "text_disabled"
+	passes[#passes + 1] = {
+		pass_type = "text",
+		content_id = hotspot_name,
+		text_id = text_name,
+		style_id = text_disabled_name,
+		content_check_function = function (content)
+			return content.disable_button
+		end
+	}
+	style[text_disabled_name] = {
+		horizontal_alignment = "left",
+		font_size = 22,
+		word_wrap = true,
+		vertical_alignment = "center",
+		font_type = "hell_shark",
+		text_color = Colors.get_color_table_with_alpha("gray", 255),
+		default_text_color = Colors.get_color_table_with_alpha("gray", 255),
+		offset = {
+			text_offset_x,
+			3,
+			4
+		},
+		size = size
+	}
+	local text_shadow_name = "text_shadow"
+	passes[#passes + 1] = {
+		pass_type = "text",
+		content_id = hotspot_name,
+		text_id = text_name,
+		style_id = text_shadow_name
+	}
+	style[text_shadow_name] = {
+		vertical_alignment = "center",
+		font_size = 22,
+		horizontal_alignment = "left",
+		word_wrap = true,
+		font_type = "hell_shark",
+		text_color = Colors.get_color_table_with_alpha("black", 255),
+		offset = {
+			text_offset_x + 3,
+			2,
+			3
+		},
+		size = size
+	}
+	local checkbox_background_name = "checkbox_background"
+	passes[#passes + 1] = {
+		pass_type = "rect",
+		style_id = checkbox_background_name
+	}
+	local checkbox_size = {
+		25,
+		25
+	}
+	local checkbox_offset = {
+		0,
+		size[2] / 2 - checkbox_size[2] / 2 + 2,
+		3
+	}
+	style[checkbox_background_name] = {
+		size = {
+			checkbox_size[1],
+			checkbox_size[2]
+		},
+		offset = checkbox_offset,
+		color = {
+			255,
+			0,
+			0,
+			0
+		}
+	}
+	local checkbox_frame_name = "checkbox_frame"
+	passes[#passes + 1] = {
+		pass_type = "texture_frame",
+		content_id = hotspot_name,
+		texture_id = checkbox_frame_name,
+		style_id = checkbox_frame_name,
+		content_check_function = function (content)
+			return not content.is_disabled
+		end
+	}
+	local frame_settings = UIFrameSettings.menu_frame_06
+	hotspot_content[checkbox_frame_name] = frame_settings.texture
+	style[checkbox_frame_name] = {
+		size = {
+			checkbox_size[1],
+			checkbox_size[2]
+		},
+		texture_size = frame_settings.texture_size,
+		texture_sizes = frame_settings.texture_sizes,
+		offset = {
+			checkbox_offset[1],
+			checkbox_offset[2],
+			checkbox_offset[3] + 1
+		},
+		color = {
+			255,
+			255,
+			255,
+			255
+		}
+	}
+	local checkbox_frame_disabled_name = "checkbox_frame_disabled"
+	passes[#passes + 1] = {
+		pass_type = "texture_frame",
+		content_id = hotspot_name,
+		texture_id = checkbox_frame_name,
+		style_id = checkbox_frame_disabled_name,
+		content_check_function = function (content)
+			return not content.is_disabled
+		end
+	}
+	style[checkbox_frame_disabled_name] = {
+		size = {
+			checkbox_size[1],
+			checkbox_size[2]
+		},
+		texture_size = frame_settings.texture_size,
+		texture_sizes = frame_settings.texture_sizes,
+		offset = {
+			checkbox_offset[1],
+			checkbox_offset[2],
+			checkbox_offset[3] + 1
+		},
+		color = {
+			96,
+			255,
+			255,
+			255
+		}
+	}
+	local checkbox_marker_name = "checkbox_marker"
+	passes[#passes + 1] = {
+		pass_type = "texture",
+		content_id = hotspot_name,
+		texture_id = checkbox_marker_name,
+		style_id = checkbox_marker_name,
+		content_check_function = function (content)
+			return content.is_selected and not content.disable_button
+		end
+	}
+	hotspot_content[checkbox_marker_name] = "matchmaking_checkbox"
+	local marker_size = {
+		22,
+		16
+	}
+	local marker_offset = {
+		checkbox_offset[1] + 4,
+		(checkbox_offset[2] + marker_size[2] / 2) - 1,
+		checkbox_offset[3] + 2
+	}
+	style[checkbox_marker_name] = {
+		size = marker_size,
+		offset = marker_offset,
+		color = Colors.get_color_table_with_alpha("white", 255)
+	}
+	local checkbox_marker_disabled_name = "checkbox_marker_disabled"
+	passes[#passes + 1] = {
+		pass_type = "texture",
+		content_id = hotspot_name,
+		texture_id = checkbox_marker_name,
+		style_id = checkbox_marker_disabled_name,
+		content_check_function = function (content)
+			return content.is_selected and content.disable_button
+		end
+	}
+	style[checkbox_marker_disabled_name] = {
+		size = marker_size,
+		offset = marker_offset,
+		color = Colors.get_color_table_with_alpha("gray", 255)
+	}
+	widget.element.passes = passes
+	widget.content = content
+	widget.style = style
+	widget.offset = {
+		0,
+		0,
+		0
+	}
+	widget.scenegraph_id = scenegraph_id
+
+	return widget
+end
+
 local disable_with_gamepad = true
 local widgets_definition = {
 	window = UIWidgets.create_frame("window", scenegraph_definition.window.size, "menu_frame_11"),
-	-- window_background = UIWidgets.create_tiled_texture("window_background", "menu_frame_bg_01", {
-	-- 	960,
-	-- 	1080
-	-- }, nil, nil, {
-	-- 	255,
-	-- 	100,
-	-- 	100,
-	-- 	100
-	-- }),
-	-- window_background_mask = UIWidgets.create_tiled_texture("window_background_mask", "menu_frame_bg_01", {
-	-- 	960,
-	-- 	1080
-	-- }, nil, true),
+
 	exit_button = UIWidgets.create_default_button("exit_button", scenegraph_definition.exit_button.size, nil, nil, Localize("menu_close"), 24, nil, "button_detail_04", 34, disable_with_gamepad),
-	-- back_button = UIWidgets.create_default_button("exit_button", scenegraph_definition.exit_button.size, nil, nil, Localize("menu_back"), 24, nil, "button_detail_04", 34, disable_with_gamepad),
 	title = UIWidgets.create_simple_texture("frame_title_bg", "title"),
 	title_bg = UIWidgets.create_background("title_bg", scenegraph_definition.title_bg.size, "menu_frame_bg_02"),
 	title_text = UIWidgets.create_simple_text(Localize("start_game_view_title"), "title_text", nil, nil, title_text_style),
@@ -552,50 +830,19 @@ local widgets_definition = {
 		large_window_frame_width
 	}, "essence_panel"),
 	poi_panel_text = UIWidgets.create_simple_text("0", "poi_panel_text", nil, nil, panel_value_text_style),
-	viewport_setting_tooltip = UIWidgets.create_additional_option_tooltip(
+
+	viewport_setting_tooltip = UIWidgets.create_simple_tooltip(
+		"n/a",
 		"poi_panel_text",
-		scenegraph_definition.poi_panel_text.size,
-		{ "additional_option_info", "hero_power_perks" },
-		{ title = "viewport settings", description = "some settings in detail" },
 		400,
-		nil,
-		"top",
-		nil,
-		{
-			0,
-			22,
-			0
-		}
-	)
+		nil
+	),
 
-
-	-- window = UIWidgets.create_frame("window", window_size, "", 1),
-	-- window = UIWidgets.create_frame("window", scenegraph_definition.window.size, "menu_frame_06"),
-	-- item_title = UIWidgets.create_title_text("n/a", "item_title"),
-	-- background = UIWidgets.create_background_with_frame("background", scenegraph_definition.background.size, "menu_frame_11"," menu_frame_02"),
-	-- background_mask = UIWidgets.create_simple_texture("mask_rect", "background_mask"),
-	-- info_window_video = UIWidgets.create_frame("info_window_video", scenegraph_definition.info_window_video.size, "menu_frame_06"),
-	-- info_video_edge_left = UIWidgets.create_simple_texture("frame_detail_03", "info_video_edge_left"),
-	-- info_video_edge_right = UIWidgets.create_simple_uv_texture("frame_detail_03", {
-	-- 	{
-	-- 		1,
-	-- 		0
-	-- 	},
-	-- 	{
-	-- 		0,
-	-- 		1
-	-- 	}
-	-- }, "info_video_edge_right"),
-	-- window_background = UIWidgets.create_tiled_texture("window", "menu_frame_bg_01", {
-	-- 	960,
-	-- 	1080
-	-- }, nil, nil, {
-	-- 	255,
-	-- 	100,
-	-- 	100,
-	-- 	100
-	-- }),
-	-- viewport_background = UIWidgets.create_rect_with_frame("viewport_background", scenegraph_definition.viewport_background.size, background_color, "menu_frame_06"),
+	map_checkbox = create_checkbox_button("map_checkbox", scenegraph_definition.map_checkbox.size, "Original shading", 24, {
+		title = "Original shading environment",
+		description = "Use the shading environment from the current level instead of the map view overwrite"
+	}),
+	
 }
 local map_viewport = {
 	scenegraph_id = "viewport",
